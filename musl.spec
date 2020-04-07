@@ -23,7 +23,12 @@
 %endif
 
 %ifarch %{arm}
+# ARM is... complicated...
+%ifarch armv3l armv4b armv4l armv4tl armv5tl armv5tel armv5tejl armv6l armv7l
 %global _musl_target_cpu arm
+%else
+%global _musl_target_cpu armhf
+%endif
 %global _musl_platform_suffix eabi
 %endif
 
