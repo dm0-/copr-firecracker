@@ -45,7 +45,12 @@
 %endif
 
 %ifarch %{power64}
+# POWER architectures have a different name if little-endian
+%ifarch ppc64le
+%global _musl_target_cpu powerpc64le
+%else
 %global _musl_target_cpu powerpc64
+%endif
 %endif
 
 %ifnarch %{ix86} %{arm} %{mips} %{power64} ppc
@@ -226,6 +231,11 @@ programs and libraries with musl easily.
 
 
 %build
+%ifarch %{power64}
+# Deal with ABI mismatch on long double between glibc and musl
+export CC="gcc -mlong-double-64"
+%endif
+
 # Set linker flags to get correct soname...
 export LDFLAGS="%{?build_ldflags} -Wl,-soname,ld-musl-%{_musl_target_cpu}.so.1"
 %configure --enable-debug --enable-wrapper=all
