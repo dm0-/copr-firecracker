@@ -88,7 +88,7 @@
 
 Name:		musl
 Version:	1.2.0
-Release:	1%{?dist}
+Release:	2%{?dist}
 Summary:	Fully featured lightweight standard C library for Linux
 License:	MIT
 URL:		https://musl.libc.org
@@ -115,7 +115,7 @@ BuildRequires:	gnupg2
 
 
 %description
-musl is a new C standard library to power a new generation
+musl is a C standard library to power a new generation
 of Linux-based devices. It is lightweight, fast, simple,
 free, and strives to be correct in the sense of standards
 conformance and safety.
@@ -133,7 +133,7 @@ Requires:	%{name}-filesystem%{?_isa} = %{version}-%{release}
 %endif
 
 %description libc
-musl is a new C standard library to power a new generation
+musl is a C standard library to power a new generation
 of Linux-based devices. It is lightweight, fast, simple,
 free, and strives to be correct in the sense of standards
 conformance and safety.
@@ -147,7 +147,7 @@ programs and libraries against musl.
 Summary:	Base filesystem for %{name}
 
 %description filesystem
-musl is a new C standard library to power a new generation
+musl is a C standard library to power a new generation
 of Linux-based devices. It is lightweight, fast, simple,
 free, and strives to be correct in the sense of standards
 conformance and safety.
@@ -169,7 +169,7 @@ Recommends:	%{name}-libc-static = %{version}-%{release}
 %endif
 
 %description devel
-musl is a new C standard library to power a new generation
+musl is a C standard library to power a new generation
 of Linux-based devices. It is lightweight, fast, simple,
 free, and strives to be correct in the sense of standards
 conformance and safety.
@@ -185,7 +185,7 @@ Provides:	%{name}-static%{?_isa} = %{version}-%{release}
 Requires:	%{name}-devel%{?_isa} = %{version}-%{release}
 
 %description libc-static
-musl is a new C standard library to power a new generation
+musl is a C standard library to power a new generation
 of Linux-based devices. It is lightweight, fast, simple,
 free, and strives to be correct in the sense of standards
 conformance and safety.
@@ -199,7 +199,7 @@ Requires:	%{name}-devel = %{version}-%{release}
 Requires:	gcc
 
 %description gcc
-musl is a new C standard library to power a new generation
+musl is a C standard library to power a new generation
 of Linux-based devices. It is lightweight, fast, simple,
 free, and strives to be correct in the sense of standards
 conformance and safety.
@@ -213,7 +213,7 @@ Requires:	%{name}-devel = %{version}-%{release}
 Requires:	clang
 
 %description clang
-musl is a new C standard library to power a new generation
+musl is a C standard library to power a new generation
 of Linux-based devices. It is lightweight, fast, simple,
 free, and strives to be correct in the sense of standards
 conformance and safety.
@@ -317,6 +317,9 @@ EOF
 
 
 %changelog
+* Tue Apr  7 2020 Neal Gompa <ngompa13@gmail.com> - 1.2.0-2
+- Clean up description
+
 * Mon Apr  6 2020 Neal Gompa <ngompa13@gmail.com> - 1.2.0-1
 - Rebase to 1.2.0
 - Add patch to support PIE with static linking
