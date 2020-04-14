@@ -88,7 +88,7 @@
 
 Name:		musl
 Version:	1.2.0
-Release:	2%{?dist}
+Release:	3%{?dist}
 Summary:	Fully featured lightweight standard C library for Linux
 License:	MIT
 URL:		https://musl.libc.org
@@ -248,7 +248,8 @@ export LDFLAGS="%{?build_ldflags} -Wl,-soname,ld-musl-%{_musl_target_cpu}.so.1"
 # Swap the files around for libc.so, making libc.so a symlink to the real file
 rm %{buildroot}/lib/ld-musl-%{_musl_target_cpu}.so.1
 mv %{buildroot}%{_libdir}/libc.so %{buildroot}/lib/ld-musl-%{_musl_target_cpu}.so.1
-ln -sr %{buildroot}/lib/ld-musl-%{_musl_target_cpu}.so.1 %{buildroot}%{_libdir}/libc.so
+ln -sr %{buildroot}/lib/ld-musl-%{_musl_target_cpu}.so.1 %{buildroot}%{_libdir}/ld-musl-%{_musl_target_cpu}.so.1
+ln -sr %{buildroot}%{_libdir}/ld-musl-%{_musl_target_cpu}.so.1 %{buildroot}%{_libdir}/libc.so
 
 # Write search path for dynamic linker
 mkdir -p %{buildroot}%{_sysconfdir}
@@ -280,6 +281,7 @@ EOF
 %{_syslibdir}/ld-musl-%{_musl_target_cpu}.so.1
 %endif
 %endif
+%{_libdir}/ld-musl-%{_musl_target_cpu}.so.1
 %config(noreplace) %{_sysconfdir}/ld-musl-%{_musl_target_cpu}.path
 
 %if %{without system_libc}
@@ -317,6 +319,9 @@ EOF
 
 
 %changelog
+* Tue Apr 14 2020 Neal Gompa <ngompa13@gmail.com> - 1.2.0-3
+- Add missing symlink for dynamically linked executables to work
+
 * Tue Apr  7 2020 Neal Gompa <ngompa13@gmail.com> - 1.2.0-2
 - Clean up description
 
