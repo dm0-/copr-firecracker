@@ -88,7 +88,7 @@
 
 Name:		musl
 Version:	1.2.0
-Release:	3%{?dist}
+Release:	4%{?dist}
 Summary:	Fully featured lightweight standard C library for Linux
 License:	MIT
 URL:		https://musl.libc.org
@@ -231,6 +231,10 @@ programs and libraries with musl easily.
 
 
 %build
+# musl is known not to work with LTO
+# Disable LTO
+%define _lto_cflags %{nil}
+
 %ifarch %{power64}
 # Deal with ABI mismatch on long double between glibc and musl
 export CC="gcc -mlong-double-64"
@@ -319,6 +323,9 @@ EOF
 
 
 %changelog
+* Wed Jul  1 2020 Jeff Law <law@redhat.com> - 1.2.0-4
+- Disable LTO
+
 * Tue Apr 14 2020 Neal Gompa <ngompa13@gmail.com> - 1.2.0-3
 - Add missing symlink for dynamically linked executables to work
 
