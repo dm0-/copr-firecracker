@@ -88,7 +88,7 @@
 
 Name:		musl
 Version:	1.2.2
-Release:	2%{?dist}
+Release:	3%{?dist}
 Summary:	Fully featured lightweight standard C library for Linux
 License:	MIT
 URL:		https://musl.libc.org
@@ -323,6 +323,9 @@ EOF
 
 
 %changelog
+* Thu Jan 20 2022 Fedora Release Engineering <releng@fedoraproject.org> - 1.2.2-3
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_36_Mass_Rebuild
+
 * Thu Jul 22 2021 Fedora Release Engineering <releng@fedoraproject.org> - 1.2.2-2
 - Rebuilt for https://fedoraproject.org/wiki/Fedora_35_Mass_Rebuild
 
