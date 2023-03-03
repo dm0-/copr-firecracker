@@ -88,7 +88,7 @@
 
 Name:		musl
 Version:	1.2.3
-Release:	2%{?dist}
+Release:	3%{?dist}
 Summary:	Fully featured lightweight standard C library for Linux
 License:	MIT
 URL:		https://musl.libc.org
@@ -270,12 +270,23 @@ ln -sr %{buildroot}/lib/ld-musl-%{_musl_target_cpu}.so.1 %{buildroot}%{_syslibdi
 %endif
 %endif
 
-mkdir -p %{buildroot}%{_rpmconfigdir}/macros.d
-touch %{buildroot}%{_rpmconfigdir}/macros.d/macros.musl
-cat > %{buildroot}%{_rpmconfigdir}/macros.d/macros.musl <<EOF
+mkdir -p %{buildroot}%{_rpmmacrodir}
+%if %{without crossmode}
+cat > %{buildroot}%{_rpmmacrodir}/macros.musl <<EOF
 %%_musl_libdir %{_libdir}
 %%_musl_includedir %{_includedir}
 EOF
+%else
+# Support installing multiple architecture sysroots at once.
+cat > %{buildroot}%{_rpmmacrodir}/macros.musl-%{_musl_target_cpu} <<EOF
+%%_musl_includedir %{_includedir}
+%%_musl_libdir %{_libdir}
+%%_musl_%{_musl_target_cpu}_sysroot %%{_prefix}/%{_musl_platform}
+%%_musl_%{_musl_target_cpu}_includedir %%{_musl_%{_musl_target_cpu}_sysroot}/usr/include
+%%_musl_%{_musl_target_cpu}_libdir %%{_musl_%{_musl_target_cpu}_sysroot}/usr/%{_lib}
+EOF
+ln -fns . %{buildroot}%{_prefix}/%{_musl_platform}/usr
+%endif
 
 %files libc
 %license COPYRIGHT
@@ -292,6 +303,7 @@ EOF
 %files filesystem
 %if %{with crossmode}
 %dir %{_prefix}/%{_musl_platform}
+%{_prefix}/%{_musl_platform}/usr
 %endif
 %dir %{_libdir}
 %dir %{_includedir}
@@ -305,7 +317,7 @@ EOF
 %{_libdir}/*.o
 %{_libdir}/*.a
 %exclude %{_libdir}/libc.a
-%{_rpmconfigdir}/macros.d/macros.musl
+%{_rpmmacrodir}/macros.musl*
 
 %files libc-static
 %license COPYRIGHT
@@ -323,6 +335,10 @@ EOF
 
 
 %changelog
+* Thu Mar 02 2023 David Michael <fedora.dm0@gmail.com> - 1.2.3-3
+- Support parallel multiarch installation.
+- Make crossmode sysroot-compatible with /usr prefixed paths.
+
 * Fri Jul 22 2022 Fedora Release Engineering <releng@fedoraproject.org> - 1.2.3-2
 - Rebuilt for https://fedoraproject.org/wiki/Fedora_37_Mass_Rebuild
 
