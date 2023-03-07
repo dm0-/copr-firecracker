@@ -339,6 +339,7 @@ This package includes the Rust compiler and documentation generator.
 
 %package std-static
 Summary:        Standard library for Rust
+Provides:       %{name}-std-static-%{rust_triple} = %{version}-%{release}
 Requires:       %{name} = %{version}-%{release}
 Requires:       glibc-devel%{?_isa} >= 2.11
 
