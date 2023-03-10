@@ -14,6 +14,8 @@ License:        MIT OR Apache-2.0
 URL:            https://crates.io/crates/userfaultfd-sys
 Source:         %{crates_source}
 
+Patch1:         %{name}-0.4.2-revert-bindgen.patch
+
 BuildRequires:  rust-packaging >= 21
 
 %global _description %{expand:
