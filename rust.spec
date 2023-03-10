@@ -108,7 +108,7 @@ Patch1:         0001-Use-lld-provided-by-system-for-wasm.patch
 Patch2:         rustc-1.61.0-rust-gdb-substitute-path.patch
 
 # Adjust Fedora packaging flags as needed for a different libc.
-Patch3:         rust-1.67.1-fix-musl-bootstrap.patch
+Patch3:         %{name}-1.67.1-fix-musl-bootstrap.patch
 
 ### RHEL-specific patches below ###
 

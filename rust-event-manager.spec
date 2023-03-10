@@ -13,6 +13,8 @@ License:        Apache-2.0 OR BSD-3-Clause
 URL:            https://crates.io/crates/event-manager
 Source:         %{crates_source}
 
+Patch1:         %{name}-0.3.0-skip-criterion.patch
+
 BuildRequires:  rust-packaging >= 21
 
 %global _description %{expand:
