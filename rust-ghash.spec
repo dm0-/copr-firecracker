@@ -7,7 +7,7 @@
 Name:           rust-ghash
 Version:        0.5.0
 Release:        %autorelease
-Summary:        Universal hash over GF(2^128) useful for constructing a Message Authentication Code
+Summary:        Universal hash over GF(2^128) useful for the AES-GCM cipher
 
 License:        Apache-2.0 OR MIT
 URL:            https://crates.io/crates/ghash

@@ -7,7 +7,7 @@
 Name:           rust-aead
 Version:        0.5.1
 Release:        %autorelease
-Summary:        Traits for Authenticated Encryption with Associated Data
+Summary:        Traits for AEAD algorithms
 
 License:        MIT OR Apache-2.0
 URL:            https://crates.io/crates/aead
@@ -108,18 +108,6 @@ This package contains library source intended for building other packages which
 use the "getrandom" feature of the "%{crate}" crate.
 
 %files       -n %{name}+getrandom-devel
-%ghost %{crate_instdir}/Cargo.toml
-
-%package     -n %{name}+heapless-devel
-Summary:        %{summary}
-BuildArch:      noarch
-
-%description -n %{name}+heapless-devel %{_description}
-
-This package contains library source intended for building other packages which
-use the "heapless" feature of the "%{crate}" crate.
-
-%files       -n %{name}+heapless-devel
 %ghost %{crate_instdir}/Cargo.toml
 
 %package     -n %{name}+rand_core-devel

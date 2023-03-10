@@ -37,6 +37,8 @@ use the "%{crate}" crate.
 %doc %{crate_instdir}/CONTRIBUTING.md
 %doc %{crate_instdir}/README.md
 %{crate_instdir}/
+%exclude %{crate_instdir}/appveyor.yml
+%exclude %{crate_instdir}/ci/
 
 %package     -n %{name}+default-devel
 Summary:        %{summary}
@@ -84,18 +86,6 @@ This package contains library source intended for building other packages which
 use the "async_futures" feature of the "%{crate}" crate.
 
 %files       -n %{name}+async_futures-devel
-%ghost %{crate_instdir}/Cargo.toml
-
-%package     -n %{name}+async_smol-devel
-Summary:        %{summary}
-BuildArch:      noarch
-
-%description -n %{name}+async_smol-devel %{_description}
-
-This package contains library source intended for building other packages which
-use the "async_smol" feature of the "%{crate}" crate.
-
-%files       -n %{name}+async_smol-devel
 %ghost %{crate_instdir}/Cargo.toml
 
 %package     -n %{name}+async_std-devel
@@ -218,18 +208,6 @@ use the "real_blackbox" feature of the "%{crate}" crate.
 %files       -n %{name}+real_blackbox-devel
 %ghost %{crate_instdir}/Cargo.toml
 
-%package     -n %{name}+smol-devel
-Summary:        %{summary}
-BuildArch:      noarch
-
-%description -n %{name}+smol-devel %{_description}
-
-This package contains library source intended for building other packages which
-use the "smol" feature of the "%{crate}" crate.
-
-%files       -n %{name}+smol-devel
-%ghost %{crate_instdir}/Cargo.toml
-
 %package     -n %{name}+stable-devel
 Summary:        %{summary}
 BuildArch:      noarch
@@ -256,6 +234,8 @@ use the "tokio" feature of the "%{crate}" crate.
 
 %prep
 %autosetup -n %{crate}-%{version_no_tilde} -p1
+# remove executable bit from all files ...
+find . -type f -executable -exec chmod -x {} +
 %cargo_prep
 
 %generate_buildrequires

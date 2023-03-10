@@ -15,6 +15,8 @@ Source:         %{crates_source}
 
 BuildRequires:  rust-packaging >= 21
 
+ExclusiveArch:  aarch64 x86_64
+
 %global _description %{expand:
 Safe wrappers over KVM ioctls.}
 

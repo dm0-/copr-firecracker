@@ -9,7 +9,7 @@ Version:        0.1.0
 Release:        %autorelease
 Summary:        Helpers for allocating resources needed during the lifetime of a VM
 
-License:        Apache-2.0 OR BSD-3-Clause
+License:        Apache-2.0 AND (Apache-2.0 OR BSD-3-Clause)
 URL:            https://crates.io/crates/vm-allocator
 Source:         %{crates_source}
 

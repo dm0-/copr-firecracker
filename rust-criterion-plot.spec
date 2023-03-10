@@ -51,6 +51,8 @@ use the "default" feature of the "%{crate}" crate.
 
 %prep
 %autosetup -n %{crate}-%{version_no_tilde} -p1
+# remove executable bit from all files ...
+find . -type f -executable -exec chmod -x {} +
 %cargo_prep
 
 %generate_buildrequires

@@ -75,6 +75,8 @@ use the "linux5_7" feature of the "%{crate}" crate.
 
 %prep
 %autosetup -n %{crate}-%{version_no_tilde} -p1
+# Fix documentation file mode.
+chmod -c 0644 CHANGELOG.md
 %cargo_prep
 
 %generate_buildrequires

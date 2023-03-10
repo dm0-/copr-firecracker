@@ -7,7 +7,7 @@
 Name:           rust-aes-gcm
 Version:        0.10.1
 Release:        %autorelease
-Summary:        Pure Rust implementation of the AES-GCM
+Summary:        Pure Rust implementation of the AES-GCM AEAD Cipher
 
 License:        Apache-2.0 OR MIT
 URL:            https://crates.io/crates/aes-gcm
@@ -84,18 +84,6 @@ This package contains library source intended for building other packages which
 use the "getrandom" feature of the "%{crate}" crate.
 
 %files       -n %{name}+getrandom-devel
-%ghost %{crate_instdir}/Cargo.toml
-
-%package     -n %{name}+heapless-devel
-Summary:        %{summary}
-BuildArch:      noarch
-
-%description -n %{name}+heapless-devel %{_description}
-
-This package contains library source intended for building other packages which
-use the "heapless" feature of the "%{crate}" crate.
-
-%files       -n %{name}+heapless-devel
 %ghost %{crate_instdir}/Cargo.toml
 
 %package     -n %{name}+std-devel

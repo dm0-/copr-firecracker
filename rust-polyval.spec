@@ -7,7 +7,7 @@
 Name:           rust-polyval
 Version:        0.6.0
 Release:        %autorelease
-Summary:        GHASH-like universal hash over GF(2^128) useful for constructing a Message Authentication Code
+Summary:        GHASH-like universal hash over GF(2^128)
 
 License:        Apache-2.0 OR MIT
 URL:            https://crates.io/crates/polyval
