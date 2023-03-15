@@ -13,7 +13,7 @@ License:        Apache-2.0 AND BSD-3-Clause
 URL:            https://crates.io/crates/linux-loader
 Source:         %{crates_source}
 
-Patch1:         %{name}-0.8.1-skip-criterion.patch
+Patch1:         %{name}-0.8.1-remove-criterion.patch
 
 BuildRequires:  rust-packaging >= 21
 

@@ -13,7 +13,7 @@ License:        MIT OR Apache-2.0
 URL:            https://crates.io/crates/universal-hash
 Source:         %{crates_source}
 
-Patch1:         %{name}-%{version}-subtle.patch
+Patch1:         %{name}-%{version}-upgrade-subtle.patch
 
 BuildRequires:  rust-packaging >= 21
 

@@ -6,7 +6,7 @@
 %global crate userfaultfd-sys
 
 Name:           rust-userfaultfd-sys
-Version:        0.4.2
+Version:        0.4.3
 Release:        %autorelease
 Summary:        Low-level bindings for userfaultfd functionality on Linux
 
@@ -14,7 +14,7 @@ License:        MIT OR Apache-2.0
 URL:            https://crates.io/crates/userfaultfd-sys
 Source:         %{crates_source}
 
-Patch1:         %{name}-0.4.2-revert-bindgen.patch
+Patch1:         %{name}-0.4.3-downgrade-bindgen.patch
 
 BuildRequires:  rust-packaging >= 21
 
