@@ -16,7 +16,7 @@ Source:         %{crates_source}
 BuildRequires:  rust-packaging >= 21
 
 %global _description %{expand:
-`Cargo.toml` struct definitions for parsing with Serde.}
+Cargo.toml struct definitions for parsing with Serde.}
 
 %description %{_description}
 

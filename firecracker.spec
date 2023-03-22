@@ -22,7 +22,7 @@ Version:        1.3.1
 Release:        1%{?dist}
 
 Summary:        Secure and fast microVMs for serverless computing
-License:        Apache-2.0
+License:        Apache-2.0 AND (Apache-2.0 OR BSD-3-Clause) AND (Apache-2.0 OR BSL-1.0) AND (Apache-2.0 OR MIT) AND (Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT) AND BSD-3-Clause AND ISC AND MIT AND (MIT OR Unlicense) AND Unicode-DFS-2016
 URL:            https://firecracker-microvm.github.io/
 
 Source0:        https://github.com/firecracker-microvm/firecracker/archive/refs/tags/v%{version}.tar.gz#/%{name}-%{version}.tgz
@@ -66,7 +66,7 @@ sed -i -e 's,../../forks,forks,' Cargo.toml
 %cargo_generate_buildrequires
 
 %build
-%cargo_build -- %{!?with_jailer:--exclude=jailer} --workspace %{?cargo_target:--target=%{cargo_target}}
+%cargo_build -- %{?cargo_target:--target=%{cargo_target}} --workspace --package=src/{firecracker,%{?with_jailer:jailer,}rebase-snap,seccompiler}
 
 %install
 install -pm 0755 -Dt %{buildroot}%{_bindir} target/%{?cargo_target}/release/{firecracker,%{?with_jailer:jailer,}rebase-snap,seccompiler-bin}
@@ -78,7 +78,7 @@ ln -fn resources/seccomp/unimplemented.json seccomp-filter.json
 %if %{with check}
 %check
 # Ignore test failures over host resources like /dev/kvm, but log everything.
-%cargo_test -- %{!?with_jailer:--exclude=jailer} --workspace %{?cargo_target:--target=%{cargo_target}} || :
+%cargo_test -- %{?cargo_target:--target=%{cargo_target}} --workspace --package=src/{firecracker,%{?with_jailer:jailer,}rebase-snap,seccompiler} || :
 %endif
 
 
