@@ -31,9 +31,10 @@ Source0:        https://github.com/firecracker-microvm/firecracker/archive/refs/
 Source1:        https://github.com/firecracker-microvm/kvm-bindings/archive/e8359204b41d5c2e7c5af9ae5c26283b62337740.tar.gz#/kvm-bindings-0.6.0-1.crate
 Source2:        https://github.com/firecracker-microvm/micro-http/archive/4b18a043e997da5b5f679e3defc279fec908753e.tar.gz#/micro_http-0.1.0.crate
 
-Patch1:         %{name}-1.3.1-remove-criterion.patch
-Patch2:         %{name}-1.3.1-remove-device_tree.patch
-Patch3:         %{name}-1.3.1-upgrade-kvm-ioctls.patch
+Patch1:         %{name}-1.3.1-remove-cargo_toml.patch
+Patch2:         %{name}-1.3.1-remove-criterion.patch
+Patch3:         %{name}-1.3.1-remove-device_tree.patch
+Patch4:         %{name}-1.3.1-upgrade-kvm-ioctls.patch
 
 BuildRequires:  rust-packaging
 %if %defined cargo_target
