@@ -12,6 +12,8 @@ Summary:        Helpers for allocating resources needed during the lifetime of a
 License:        Apache-2.0 AND (Apache-2.0 OR BSD-3-Clause)
 URL:            https://crates.io/crates/vm-allocator
 Source:         %{crates_source}
+# Manually created patch for downstream crate metadata changes
+Patch:          vm-allocator-fix-metadata.diff
 
 BuildRequires:  rust-packaging >= 21
 
@@ -32,6 +34,8 @@ use the "%{crate}" crate.
 %files          devel
 %license %{crate_instdir}/LICENSE-APACHE
 %doc %{crate_instdir}/README.md
+%doc %{crate_instdir}/images
+%doc %{crate_instdir}/src/allocation_engine/DESIGN.md
 %{crate_instdir}/
 
 %package     -n %{name}+default-devel

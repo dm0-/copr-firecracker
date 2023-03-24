@@ -12,8 +12,8 @@ Summary:        Abstractions for implementing event based systems
 License:        Apache-2.0 OR BSD-3-Clause
 URL:            https://crates.io/crates/event-manager
 Source:         %{crates_source}
-
-Patch1:         %{name}-0.3.0-remove-criterion.patch
+# Manually created patch for downstream crate metadata changes
+Patch:          event-manager-fix-metadata.diff
 
 BuildRequires:  rust-packaging >= 21
 
@@ -36,6 +36,7 @@ use the "%{crate}" crate.
 %license %{crate_instdir}/LICENSE-BSD-3-CLAUSE
 %doc %{crate_instdir}/CHANGELOG.md
 %doc %{crate_instdir}/README.md
+%doc %{crate_instdir}/docs
 %{crate_instdir}/
 
 %package     -n %{name}+default-devel

@@ -5,13 +5,15 @@
 %global crate versionize
 
 Name:           rust-versionize
-Version:        0.1.9
+Version:        0.1.10
 Release:        %autorelease
 Summary:        Version tolerant serialization/deserialization framework
 
 License:        Apache-2.0
 URL:            https://crates.io/crates/versionize
 Source:         %{crates_source}
+# Manually created patch for downstream crate metadata changes
+Patch:          versionize-fix-metadata.diff
 
 BuildRequires:  rust-packaging >= 21
 

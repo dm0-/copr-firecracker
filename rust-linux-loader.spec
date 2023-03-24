@@ -12,8 +12,8 @@ Summary:        Linux kernel image loading crate
 License:        Apache-2.0 AND BSD-3-Clause
 URL:            https://crates.io/crates/linux-loader
 Source:         %{crates_source}
-
-Patch1:         %{name}-0.8.1-remove-criterion.patch
+# Manually created patch for downstream crate metadata changes
+Patch:          linux-loader-fix-metadata.diff
 
 BuildRequires:  rust-packaging >= 21
 
@@ -37,6 +37,7 @@ use the "%{crate}" crate.
 %doc %{crate_instdir}/CHANGELOG.md
 %doc %{crate_instdir}/DESIGN.md
 %doc %{crate_instdir}/README.md
+%doc %{crate_instdir}/docs
 %{crate_instdir}/
 
 %package     -n %{name}+default-devel

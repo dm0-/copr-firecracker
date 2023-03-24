@@ -12,6 +12,8 @@ Summary:        For writing Flattened Devicetree blobs
 License:        Apache-2.0 OR BSD-3-Clause
 URL:            https://crates.io/crates/vm-fdt
 Source:         %{crates_source}
+# Manually created patch for downstream crate metadata changes
+Patch:          vm-fdt-fix-metadata.diff
 
 BuildRequires:  rust-packaging >= 21
 
@@ -34,6 +36,7 @@ use the "%{crate}" crate.
 %license %{crate_instdir}/LICENSE-BSD-3-Clause
 %doc %{crate_instdir}/CHANGELOG.md
 %doc %{crate_instdir}/README.md
+%doc %{crate_instdir}/img
 %{crate_instdir}/
 
 %package     -n %{name}+default-devel

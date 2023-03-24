@@ -5,13 +5,15 @@
 %global crate versionize_derive
 
 Name:           rust-versionize_derive
-Version:        0.1.4
+Version:        0.1.5
 Release:        %autorelease
 Summary:        Implements the Versionize derive proc macro
 
 License:        Apache-2.0
 URL:            https://crates.io/crates/versionize_derive
 Source:         %{crates_source}
+# Manually created patch for downstream crate metadata changes
+Patch:          versionize_derive-fix-metadata.diff
 
 BuildRequires:  rust-packaging >= 21
 

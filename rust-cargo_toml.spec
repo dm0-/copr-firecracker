@@ -12,6 +12,8 @@ Summary:        Cargo.toml struct definitions for parsing with Serde
 License:        Apache-2.0 OR MIT
 URL:            https://crates.io/crates/cargo_toml
 Source:         %{crates_source}
+# Manually created patch for downstream crate metadata changes
+Patch:          cargo_toml-fix-metadata.diff
 
 BuildRequires:  rust-packaging >= 21
 

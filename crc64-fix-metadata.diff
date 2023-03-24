@@ -1,0 +1,16 @@
+--- crc64-1.0.0/Cargo.toml	2016-01-07T03:02:35+00:00
++++ crc64-1.0.0/Cargo.toml	2023-03-23T15:01:58.054621+00:00
+@@ -7,12 +7,8 @@
+ homepage = "https://github.com/badboy/crc64-rs"
+ license = "BSD-3-Clause"
+ readme = "README.md"
++autobins = false
+ 
+ [lib]
+ name = "crc64"
+ path = "src/lib.rs"
+-
+-[[bin]]
+-name = "crc64"
+-path = "src/main.rs"
+-doc  = false
