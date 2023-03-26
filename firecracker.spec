@@ -68,7 +68,7 @@ sed -i -e 's,../../forks,forks,' Cargo.toml
 %cargo_generate_buildrequires
 
 %build
-%cargo_build -- %{?cargo_target:--target=%{cargo_target}} --workspace --package=src/{firecracker,%{?with_jailer:jailer,}rebase-snap,seccompiler}
+%cargo_build -- --package={firecracker,%{?with_jailer:jailer,}rebase-snap,seccompiler} %{?cargo_target:--target=%{cargo_target}}
 
 %install
 install -pm 0755 -Dt %{buildroot}%{_bindir} target/%{?cargo_target}/release/{firecracker,%{?with_jailer:jailer,}rebase-snap,seccompiler-bin}
@@ -80,7 +80,7 @@ ln -fn resources/seccomp/unimplemented.json seccomp-filter.json
 %if %{with check}
 %check
 # Ignore test failures over host resources like /dev/kvm, but log everything.
-%cargo_test -- %{?cargo_target:--target=%{cargo_target}} --workspace --package=src/{firecracker,%{?with_jailer:jailer,}rebase-snap,seccompiler} || :
+%cargo_test -- %{!?with_jailer:--exclude=jailer} %{?cargo_target:--target=%{cargo_target}} --workspace || :
 %endif
 
 
