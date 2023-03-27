@@ -13,6 +13,9 @@ License:        Apache-2.0 AND (Apache-2.0 OR BSD-3-Clause)
 URL:            https://crates.io/crates/vm-allocator
 Source:         %{crates_source}
 # Manually created patch for downstream crate metadata changes
+# * fix the license to reflect the actual source files
+# * exclude extra docs and maintainer-only files from the package
+# * use safe version ranges (backport 4eaba5322d6dea29c8d41e4470a1ef1f67d5f495)
 Patch:          vm-allocator-fix-metadata.diff
 
 BuildRequires:  rust-packaging >= 21
@@ -34,8 +37,6 @@ use the "%{crate}" crate.
 %files          devel
 %license %{crate_instdir}/LICENSE-APACHE
 %doc %{crate_instdir}/README.md
-%doc %{crate_instdir}/images
-%doc %{crate_instdir}/src/allocation_engine/DESIGN.md
 %{crate_instdir}/
 
 %package     -n %{name}+default-devel

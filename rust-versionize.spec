@@ -13,6 +13,8 @@ License:        Apache-2.0
 URL:            https://crates.io/crates/versionize
 Source:         %{crates_source}
 # Manually created patch for downstream crate metadata changes
+# * exclude maintainer-only files from the package
+# * upgrade crc64 to fix big-endian platforms
 Patch:          versionize-fix-metadata.diff
 
 BuildRequires:  rust-packaging >= 21

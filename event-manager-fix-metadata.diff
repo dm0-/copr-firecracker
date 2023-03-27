@@ -4,7 +4,7 @@
  license = "Apache-2.0 OR BSD-3-Clause"
  repository = "https://github.com/rust-vmm/event-manager"
  resolver = "2"
-+exclude = ["/CODEOWNERS", "/coverage_config*"]
++exclude = ["/CODEOWNERS", "/coverage_config*", "/docs"]
  
  [profile.bench]
  lto = true
