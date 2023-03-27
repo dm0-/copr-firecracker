@@ -13,6 +13,7 @@ License:        BSD-3-Clause
 URL:            https://crates.io/crates/crc64
 Source:         %{crates_source}
 # Manually created patch for downstream crate metadata changes
+# * prevent crc64 binary from being built and shipped
 Patch:          crc64-fix-metadata.diff
 
 BuildRequires:  rust-packaging >= 21

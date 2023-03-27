@@ -90,7 +90,13 @@ chmod -c 0644 CHANGELOG.md
 
 %if %{with check}
 %check
+%ifarch ppc64le
+# * skip unit tests on ppc64le (tests seem to expect 4K page size):
+#   https://github.com/fastly/userfaultfd-rs/issues/32
+%cargo_test -- --doc
+%else
 %cargo_test
+%endif
 %endif
 
 %changelog
