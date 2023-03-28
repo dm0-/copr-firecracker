@@ -11,7 +11,9 @@ Summary:        Helpers for allocating resources needed during the lifetime of a
 
 License:        Apache-2.0 AND (Apache-2.0 OR BSD-3-Clause)
 URL:            https://crates.io/crates/vm-allocator
-Source:         %{crates_source}
+Source0:        %{crates_source}
+# Temporary license fix: https://github.com/rust-vmm/vm-allocator/issues/53
+Source1:        https://github.com/rust-vmm/crate-template/raw/803b14f79f089dc4cdb5356375c94081e29a5c30/LICENSE-BSD-3-Clause#/%{crate}-0.1.0-bsd.txt
 # Manually created patch for downstream crate metadata changes
 # * fix the license to reflect the actual source files
 # * exclude extra docs and maintainer-only files from the package
@@ -36,6 +38,7 @@ use the "%{crate}" crate.
 
 %files          devel
 %license %{crate_instdir}/LICENSE-APACHE
+%license %{crate_instdir}/LICENSE-BSD-3-Clause
 %doc %{crate_instdir}/README.md
 %{crate_instdir}/
 
@@ -53,6 +56,7 @@ use the "default" feature of the "%{crate}" crate.
 
 %prep
 %autosetup -n %{crate}-%{version_no_tilde} -p1
+cp -p %{SOURCE1} LICENSE-BSD-3-Clause
 %cargo_prep
 
 %generate_buildrequires

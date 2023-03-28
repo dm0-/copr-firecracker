@@ -41,6 +41,7 @@ BuildRequires:  rust-packaging
 BuildRequires:  rust-std-static-%{cargo_target}
 %endif
 
+# Currently only these architectures are supported.  See the README.
 ExclusiveArch:  aarch64 x86_64
 
 %description
