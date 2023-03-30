@@ -84,7 +84,7 @@
 %endif
 
 Name:           rust
-Version:        1.68.1
+Version:        1.68.2
 Release:        2%{?dist}
 Summary:        The Rust Programming Language
 License:        (ASL 2.0 or MIT) and (BSD and MIT)
@@ -1124,8 +1124,11 @@ end}
 
 
 %changelog
-* Sat Mar 25 2023 David Michael <fedora.dm0@gmail.com> - 1.68.1-2
+* Wed Mar 29 2023 David Michael <fedora.dm0@gmail.com> - 1.68.2-2
 - Build musl target subpackages for x86_64.
+
+* Tue Mar 28 2023 Josh Stone <jistone@redhat.com> - 1.68.2-1
+- Update to 1.68.2.
 
 * Thu Mar 23 2023 Josh Stone <jistone@redhat.com> - 1.68.1-1
 - Update to 1.68.1.
