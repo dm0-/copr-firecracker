@@ -31,6 +31,11 @@
 %global wasm_targets wasm32-unknown-unknown wasm32-wasi
 %endif
 %endif
+%ifarch aarch64
+%if 0%{?fedora}
+%global musl_targets aarch64-unknown-linux-musl
+%endif
+%endif
 
 # We need CRT files for *-wasi targets, at least as new as the commit in
 # src/ci/docker/host-x86_64/dist-various-2/build-wasi-toolchain.sh
@@ -108,7 +113,10 @@ Patch1:         0001-Use-lld-provided-by-system-for-wasm.patch
 Patch2:         rustc-1.61.0-rust-gdb-substitute-path.patch
 
 # Adjust Fedora packaging flags as needed for a different libc.
-Patch3:         %{name}-1.67.1-fix-musl-bootstrap.patch
+Patch3:         %{name}-1.68.2-fix-musl-bootstrap.patch
+
+# Support building with LLVM 16.
+Patch4:         %{wasi_libc_url}/commit/16a694035f0acce5ae5906c92b69a8226df5c5b3.patch#/%{name}-1.68.2-fix-wasi-macros.patch
 
 ### RHEL-specific patches below ###
 
@@ -312,8 +320,12 @@ BuildRequires:  mingw64-winpthreads-static
 %endif
 
 %if %defined musl_targets
+%ifarch x86_64
 BuildRequires:  musl-libc-static(x86-32)
 BuildRequires:  musl-libc-static(x86-64)
+%else
+BuildRequires:  musl-libc-static
+%endif
 %endif
 
 %if %defined wasm_targets
@@ -611,6 +623,7 @@ test -f '%{local_rust_root}/bin/rustc'
 
 %if %defined wasm_targets
 %setup -q -n %{wasi_libc_name} -T -b 1
+%patch4 -p1
 %endif
 
 %setup -q -n %{rustc_package}
@@ -763,7 +776,7 @@ end}
 %{lua: do
   local cfg = ""
   for triple in string.gmatch(rpm.expand("%{musl_targets}"), "%S+") do
-    local arch = string.sub(triple, 1, 4) == "i686" and "i386" or "x86_64"
+    local arch = string.sub(triple, 1, 4) == "i686" and "i386" or string.match(triple, "[^-]*")
     cfg = cfg .. " --set target." .. triple .. ".musl-root=" .. rpm.expand("%{_musl_" .. arch .. "_sysroot}")
     cfg = cfg .. " --set target." .. triple .. ".musl-libdir=" .. rpm.expand("%{_musl_" .. arch .. "_libdir}")
   end
