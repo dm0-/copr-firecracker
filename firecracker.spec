@@ -38,7 +38,7 @@ Patch2:         %{name}-1.3.1-remove-criterion.patch
 Patch3:         %{name}-1.3.1-remove-device_tree.patch
 Patch4:         %{name}-1.3.1-upgrade-kvm-ioctls.patch
 
-BuildRequires:  rust-packaging
+BuildRequires:  cargo-rpm-macros >= 24
 %if %defined cargo_target
 BuildRequires:  rust-std-static-%{cargo_target}
 %endif
@@ -69,7 +69,7 @@ sed -i -e 's,../../forks,forks,' Cargo.toml
 
 %generate_buildrequires
 # Unconditionally include dev-dependencies to avoid build failures.
-%{__cargo_to_rpm} --path Cargo.toml buildrequires --with-check
+cargo2rpm --path Cargo.toml buildrequires --with-check
 
 %build
 %cargo_build -- --package={firecracker,%{?with_jailer:jailer,}rebase-snap,seccompiler} %{?cargo_target:--target=%{cargo_target}}
