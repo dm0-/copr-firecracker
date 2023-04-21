@@ -31,6 +31,11 @@ Source0:        https://github.com/firecracker-microvm/firecracker/archive/v%{ve
 Source1:        https://github.com/firecracker-microvm/kvm-bindings/archive/e8359204b41d5c2e7c5af9ae5c26283b62337740/kvm-bindings-e835920.tar.gz
 Source2:        https://github.com/firecracker-microvm/micro-http/archive/4b18a043e997da5b5f679e3defc279fec908753e/micro_http-4b18a04.tar.gz
 
+# kvm-bindings: Apache-2.0
+Provides:       bundled(crate(kvm-bindings)) = 0.6.0^gite835920
+# micro_http: Apache-2.0
+Provides:       bundled(crate(micro_http)) = 0.1.0^git4b18a04
+
 # Edit crate dependencies to track what is packaged in Fedora.
 # These patches do not make sense to send upstream given their purpose.
 Patch1:         %{name}-1.3.1-remove-cargo_toml.patch
@@ -81,6 +86,11 @@ install -pm 0755 -Dt %{buildroot}%{_bindir} target/%{?cargo_target}/release/{fir
 # Ship the built-in seccomp JSON as an example that can be edited and compiled.
 ln -fn resources/seccomp/%{cargo_target}.json seccomp-filter.json ||
 ln -fn resources/seccomp/unimplemented.json seccomp-filter.json
+
+# Prune unused images from the documentation directory prior to installation.
+for image in docs/images/*
+do grep --exclude-dir=images -FIqr "${image##*/}" docs *.md || rm -f "$image"
+done
 
 %if %{with check}
 %check
