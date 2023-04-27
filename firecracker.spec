@@ -2,8 +2,7 @@
 %bcond_with check
 
 # The RPM macro cargo_target can be defined to specify the Rust target to use
-# during the build.  This defaults to musl for security benefits while testing
-# in Copr--delete this to default to glibc for inclusion in Fedora.
+# during the build.  This defaults to musl for security benefits in Copr.
 %if ! %defined cargo_target
 %global cargo_target %{_target_cpu}-unknown-linux-musl
 %endif
@@ -18,7 +17,7 @@
 %endif
 
 Name:           firecracker
-Version:        1.3.1
+Version:        1.3.2
 Release:        1%{?dist}
 
 Summary:        Secure and fast microVMs for serverless computing
@@ -39,7 +38,7 @@ Provides:       bundled(crate(micro_http)) = 0.1.0^git4b18a04
 # Edit crate dependencies to track what is packaged in Fedora.
 # These patches do not make sense to send upstream given their purpose.
 Patch1:         %{name}-1.3.1-remove-cargo_toml.patch
-Patch2:         %{name}-1.3.1-remove-criterion.patch
+Patch2:         %{name}-1.3.2-remove-criterion.patch
 Patch3:         %{name}-1.3.1-remove-device_tree.patch
 Patch4:         %{name}-1.3.1-upgrade-kvm-ioctls.patch
 
@@ -58,6 +57,9 @@ services that provide serverless operational models.  Firecracker runs
 workloads in lightweight virtual machines, called microVMs, which combine the
 security and isolation properties provided by hardware virtualization
 technology with the speed and flexibility of containers.
+%{!?with_jailer:
+This package does not include all of the security features of an official
+release.  It is not production ready without additional sandboxing.}
 
 
 %prep
@@ -110,6 +112,9 @@ done
 
 
 %changelog
+* Thu Apr 27 2023 David Michael <fedora.dm0@gmail.com> - 1.3.2-1
+- Update to the 1.3.2 release.
+
 * Mon Mar 06 2023 David Michael <fedora.dm0@gmail.com> - 1.3.1-1
 - Update to the 1.3.1 release.
 

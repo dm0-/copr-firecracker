@@ -7,7 +7,7 @@ The build does not run benches, and the criterion crate is retired in Fedora.
  thiserror = "1.0.32"
  
 -[dev-dependencies]
--criterion = "0.4.0"
+-criterion = { version = "0.4.0", default-features = false }
 -
  [[bench]]
  name = "version_map"
@@ -19,7 +19,7 @@ The build does not run benches, and the criterion crate is retired in Fedora.
  cpuid = { path = "../cpuid" }
  
 -[dev-dependencies]
--criterion = "0.4.0"
+-criterion = { version = "0.4.0", default-features = false }
 -
  [[bench]]
  name = "main"
