@@ -25,9 +25,15 @@
 %ifarch x86_64
 %if 0%{?fedora}
 %global mingw_targets i686-pc-windows-gnu x86_64-pc-windows-gnu
+%global musl_targets i686-unknown-linux-musl x86_64-unknown-linux-musl
 %endif
 %if 0%{?fedora} || 0%{?rhel} >= 8
 %global wasm_targets wasm32-unknown-unknown wasm32-wasi
+%endif
+%endif
+%ifarch aarch64
+%if 0%{?fedora}
+%global musl_targets aarch64-unknown-linux-musl
 %endif
 %endif
 
@@ -84,7 +90,7 @@
 
 Name:           rust
 Version:        1.70.0
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        The Rust Programming Language
 License:        (ASL 2.0 or MIT) and (BSD and MIT)
 # ^ written as: (rust itself) and (bundled libraries)
@@ -105,6 +111,9 @@ Patch1:         0001-Use-lld-provided-by-system-for-wasm.patch
 
 # Set a substitute-path in rust-gdb for standard library sources.
 Patch2:         rustc-1.70.0-rust-gdb-substitute-path.patch
+
+# Adjust Fedora packaging flags as needed for a different libc.
+Patch3:         %{name}-1.70.0-fix-musl-bootstrap.patch
 
 ### RHEL-specific patches below ###
 
@@ -309,6 +318,15 @@ BuildRequires:  mingw32-winpthreads-static
 BuildRequires:  mingw64-winpthreads-static
 %endif
 
+%if %defined musl_targets
+%ifarch x86_64
+BuildRequires:  musl-libc-static(x86-32)
+BuildRequires:  musl-libc-static(x86-64)
+%else
+BuildRequires:  musl-libc-static
+%endif
+%endif
+
 %if %defined wasm_targets
 BuildRequires:  clang
 BuildRequires:  lld
@@ -364,6 +382,32 @@ Requires:       {{name}} = {{verrel}}
 %description std-static-{{triple}}
 This package includes the standard libraries for building applications
 written in Rust for the MinGW target {{triple}}.
+
+]], "{{(%w+)}}", subs)
+    print(s)
+  end
+end}
+%endif
+
+%if %defined musl_targets
+%{lua: do
+  for triple in string.gmatch(rpm.expand("%{musl_targets}"), "%S+") do
+    local subs = {
+      triple = triple,
+      name = rpm.expand("%{name}"),
+      verrel = rpm.expand("%{version}-%{release}"),
+    }
+    local s = string.gsub([[
+
+%package std-static-{{triple}}
+Summary:        Standard library for Rust {{triple}}
+BuildArch:      noarch
+Requires:       {{name}} = {{verrel}}
+Recommends:     musl-gcc
+
+%description std-static-{{triple}}
+This package includes the standard libraries for building applications
+written in Rust for the musl libc target {{triple}}.
 
 ]], "{{(%w+)}}", subs)
     print(s)
@@ -591,8 +635,17 @@ sed -i.try-python -e '/^try python3 /i try "%{__python3}" "$@"' ./configure
 sed -i.rust-src -e "s#@BUILDDIR@#$PWD#" ./src/etc/rust-gdb
 
 %if %without bundled_llvm
+%if %defined musl_targets
+# Save files needed by musl before deleting the llvm-project directory.
+%patch -P3 -p1
+mv -t . src/llvm-project/compiler-rt/lib/crt/crt{begin,end}.c src/llvm-project/libunwind
+rm -rf src/llvm-project
+mkdir -p src/llvm-project
+mv -t src/llvm-project libunwind
+%else
 rm -rf src/llvm-project/
 mkdir -p src/llvm-project/libunwind/
+%endif
 %endif
 
 # Remove other unused vendored libraries
@@ -719,6 +772,18 @@ fi
 end}
 %endif
 
+%if %defined musl_targets
+%{lua: do
+  local cfg = ""
+  for triple in string.gmatch(rpm.expand("%{musl_targets}"), "%S+") do
+    local arch = string.sub(triple, 1, 4) == "i686" and "i386" or string.match(triple, "[^-]*")
+    cfg = cfg .. " --set target." .. triple .. ".musl-root=" .. rpm.expand("%{_musl_" .. arch .. "_sysroot}")
+    cfg = cfg .. " --set target." .. triple .. ".musl-libdir=" .. rpm.expand("%{_musl_" .. arch .. "_libdir}")
+  end
+  rpm.define("musl_target_config " .. cfg)
+end}
+%endif
+
 %if %defined wasm_targets
 %make_build --quiet -C %{wasi_libc_dir} CC=clang AR=llvm-ar NM=llvm-nm
 %{lua: do
@@ -742,6 +807,7 @@ end}
   --set target.%{rust_triple}.ar=%{__ar} \
   --set target.%{rust_triple}.ranlib=%{__ranlib} \
   %{?mingw_target_config} \
+  %{?musl_target_config} \
   %{?wasm_target_config} \
   --python=%{__python3} \
   --local-rust-root=%{local_rust_root} \
@@ -768,7 +834,7 @@ end}
 %{__python3} ./x.py build -j "$ncpus"
 %{__python3} ./x.py doc
 
-for triple in %{?mingw_targets} %{?wasm_targets}; do
+for triple in %{?mingw_targets} %{?musl_targets} %{?wasm_targets}; do
   %{__python3} ./x.py build --target=$triple std
 done
 
@@ -780,7 +846,7 @@ done
 
 DESTDIR=%{buildroot} %{__python3} ./x.py install
 
-for triple in %{?mingw_targets} %{?wasm_targets}; do
+for triple in %{?mingw_targets} %{?musl_targets} %{?wasm_targets}; do
   DESTDIR=%{buildroot} %{__python3} ./x.py install --target=$triple std
 done
 
@@ -875,7 +941,7 @@ env RUSTC=%{buildroot}%{_bindir}/rustc \
     %{buildroot}%{_bindir}/cargo run --manifest-path build/hello-world/Cargo.toml
 
 # Try a build sanity-check for other targets
-for triple in %{?mingw_targets} %{?wasm_targets}; do
+for triple in %{?mingw_targets} %{?musl_targets} %{?wasm_targets}; do
   env RUSTC=%{buildroot}%{_bindir}/rustc \
       LD_LIBRARY_PATH="%{buildroot}%{_libdir}:$LD_LIBRARY_PATH" \
       %{buildroot}%{_bindir}/cargo build --manifest-path build/hello-world/Cargo.toml --target=$triple
@@ -939,6 +1005,30 @@ rm -rf "./build/%{rust_triple}/stage2-tools/%{rust_triple}/cit/"
 %exclude {{rustlibdir}}/{{triple}}/lib/*.dll
 %exclude {{rustlibdir}}/{{triple}}/lib/*.dll.a
 %exclude {{rustlibdir}}/{{triple}}/lib/self-contained
+
+]], "{{(%w+)}}", subs)
+    print(s)
+  end
+end}
+%endif
+
+
+%if %defined musl_targets
+%{lua: do
+  for triple in string.gmatch(rpm.expand("%{musl_targets}"), "%S+") do
+    local subs = {
+      triple = triple,
+      rustlibdir = rpm.expand("%{rustlibdir}"),
+    }
+    local s = string.gsub([[
+
+%files std-static-{{triple}}
+%dir {{rustlibdir}}
+%dir {{rustlibdir}}/{{triple}}
+%dir {{rustlibdir}}/{{triple}}/lib
+{{rustlibdir}}/{{triple}}/lib/*.rlib
+%dir {{rustlibdir}}/{{triple}}/lib/self-contained
+{{rustlibdir}}/{{triple}}/lib/self-contained/*.[ao]
 
 ]], "{{(%w+)}}", subs)
     print(s)
@@ -1049,6 +1139,9 @@ end}
 
 
 %changelog
+* Thu Jun 01 2023 David Michael <fedora.dm0@gmail.com> - 1.70.0-2
+- Build musl target subpackages for aarch64 and x86_64.
+
 * Thu Jun 01 2023 Josh Stone <jistone@redhat.com> - 1.70.0-1
 - Update to 1.70.0.
 
