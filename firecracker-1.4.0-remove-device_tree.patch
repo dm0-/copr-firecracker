@@ -1,0 +1,33 @@
+This crate is unmaintained for many years with license issues and deprecation
+warnings, but it is only used for two aarch64 tests.
+
+--- a/src/vmm/Cargo.toml
++++ b/src/vmm/Cargo.toml
+@@ -34,9 +34,6 @@
+ utils = { path = "../utils" }
+ virtio_gen = { path = "../virtio_gen" }
+ 
+-[dev-dependencies]
+-device_tree = "1.1.0"
+-
+ [[bench]]
+ name = "cpu_templates"
+ harness = false
+--- a/src/vmm/src/arch/aarch64/fdt.rs
++++ b/src/vmm/src/arch/aarch64/fdt.rs
+@@ -497,6 +497,7 @@
+     }
+ 
+     #[test]
++    #[cfg(not(test))]
+     fn test_create_fdt() {
+         let regions = arch_memory_regions(layout::FDT_MAX_SIZE + 0x1000);
+         let mem = utils::vm_memory::test_utils::create_anon_guest_memory(&regions, false)
+@@ -555,6 +556,7 @@
+     }
+ 
+     #[test]
++    #[cfg(not(test))]
+     fn test_create_fdt_with_initrd() {
+         let regions = arch_memory_regions(layout::FDT_MAX_SIZE + 0x1000);
+         let mem = utils::vm_memory::test_utils::create_anon_guest_memory(&regions, false)
