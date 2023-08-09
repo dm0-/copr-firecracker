@@ -14,11 +14,11 @@ The build does not run benches, and the criterion crate is retired in Fedora.
  harness = false
 --- a/src/vmm/Cargo.toml
 +++ b/src/vmm/Cargo.toml
-@@ -35,7 +35,6 @@
+@@ -39,7 +39,6 @@
  virtio_gen = { path = "../virtio_gen" }
  
  [dev-dependencies]
 -criterion = { version = "0.4.0", default-features = false }
  device_tree = "1.1.0"
+ proptest = { version = "1.0.0", default-features = false, features = ["std"] }
  
- [[bench]]

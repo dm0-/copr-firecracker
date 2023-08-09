@@ -62,26 +62,18 @@ back to the original implementation with the rand crate instead.
              },
              {
                  "syscall": "mmap",
---- a/src/devices/Cargo.toml
-+++ b/src/devices/Cargo.toml
+--- a/src/vmm/Cargo.toml
++++ b/src/vmm/Cargo.toml
 @@ -6,7 +6,6 @@
  license = "Apache-2.0"
  
  [dependencies]
 -aws-lc-rs = "1.0.2"
- derive_more = { version = "0.99.17", default-features = false, features = ["from"] }
+ bitflags = "2.0.2"
+ derive_more = { version = "0.99.17", default-features = false, features = ["from", "display"] }
  event-manager = "0.3.0"
- libc = "0.2.117"
-@@ -15,6 +14,7 @@
- versionize = "0.1.10"
- versionize_derive = "0.1.5"
- vm-superio = "0.7.0"
-+rand = "0.8.5"
- 
- dumbo = { path = "../dumbo" }
- logger = { path = "../logger" }
---- a/src/devices/src/virtio/rng/device.rs
-+++ b/src/devices/src/virtio/rng/device.rs
+--- a/src/vmm/src/devices/virtio/rng/device.rs
++++ b/src/vmm/src/devices/virtio/rng/device.rs
 @@ -5,8 +5,9 @@
  use std::sync::atomic::AtomicUsize;
  use std::sync::Arc;
