@@ -8,9 +8,9 @@
 # To bootstrap from scratch, set the channel and date from src/stage0.json
 # e.g. 1.59.0 wants rustc: 1.58.0-2022-01-13
 # or nightly wants some beta-YYYY-MM-DD
-%global bootstrap_version 1.70.0
-%global bootstrap_channel 1.70.0
-%global bootstrap_date 2023-06-01
+%global bootstrap_version 1.71.0
+%global bootstrap_channel 1.71.0
+%global bootstrap_date 2023-07-13
 
 # Only the specified arches will use bootstrap binaries.
 # NOTE: Those binaries used to be uploaded with every new release, but that was
@@ -25,15 +25,9 @@
 %ifarch x86_64
 %if 0%{?fedora}
 %global mingw_targets i686-pc-windows-gnu x86_64-pc-windows-gnu
-%global musl_targets i686-unknown-linux-musl x86_64-unknown-linux-musl
 %endif
 %if 0%{?fedora} || 0%{?rhel} >= 8
 %global wasm_targets wasm32-unknown-unknown wasm32-wasi
-%endif
-%endif
-%ifarch aarch64
-%if 0%{?fedora}
-%global musl_targets aarch64-unknown-linux-musl
 %endif
 %endif
 
@@ -41,7 +35,8 @@
 # src/ci/docker/host-x86_64/dist-various-2/build-wasi-toolchain.sh
 # (updated per https://github.com/rust-lang/rust/pull/96907)
 %global wasi_libc_url https://github.com/WebAssembly/wasi-libc
-%global wasi_libc_ref wasi-sdk-20
+#global wasi_libc_ref wasi-sdk-20
+%global wasi_libc_ref 7018e24d8fe248596819d2e884761676f3542a04
 %global wasi_libc_name wasi-libc-%{wasi_libc_ref}
 %global wasi_libc_source %{wasi_libc_url}/archive/%{wasi_libc_ref}/%{wasi_libc_name}.tar.gz
 %global wasi_libc_dir %{_builddir}/%{wasi_libc_name}
@@ -89,8 +84,8 @@
 %endif
 
 Name:           rust
-Version:        1.71.1
-Release:        2%{?dist}
+Version:        1.72.0
+Release:        1%{?dist}
 Summary:        The Rust Programming Language
 License:        (ASL 2.0 or MIT) and (BSD and MIT)
 # ^ written as: (rust itself) and (bundled libraries)
@@ -120,11 +115,13 @@ Patch3:         0001-Let-environment-variables-override-some-default-CPUs.patch
 # https://github.com/rust-lang/rust/pull/114069
 Patch4:         0001-Allow-using-external-builds-of-the-compiler-rt-profi.patch
 
-# https://github.com/rust-lang/rust/pull/114440
-Patch5:         0001-bootstrap-config-fix-version-comparison-bug.patch
+# Fix --no-fail-fast
+# https://github.com/rust-lang/rust/pull/113214
+Patch5:         0001-Don-t-fail-early-if-try_run-returns-an-error.patch
 
-# Adjust Fedora packaging flags as needed for a different libc.
-Patch6:         %{name}-1.71.0-fix-musl-bootstrap.patch
+# The dist-src tarball doesn't include .github/
+# https://github.com/rust-lang/rust/pull/115109
+Patch6:         0001-Skip-ExpandYamlAnchors-when-the-config-is-missing.patch
 
 ### RHEL-specific patches below ###
 
@@ -132,11 +129,11 @@ Patch6:         %{name}-1.71.0-fix-musl-bootstrap.patch
 Source100:      macros.rust-toolset
 
 # Disable cargo->libgit2->libssh2 on RHEL, as it's not approved for FIPS (rhbz1732949)
-Patch100:       rustc-1.71.0-disable-libssh2.patch
+Patch100:       rustc-1.72.0-disable-libssh2.patch
 
 # libcurl on RHEL7 doesn't have http2, but since cargo requests it, curl-sys
 # will try to build it statically -- instead we turn off the feature.
-Patch101:       rustc-1.71.0-disable-http2.patch
+Patch101:       rustc-1.72.0-disable-http2.patch
 
 # Get the Rust triple for any arch.
 %{lua: function rust_triple(arch)
@@ -329,15 +326,6 @@ BuildRequires:  mingw32-winpthreads-static
 BuildRequires:  mingw64-winpthreads-static
 %endif
 
-%if %defined musl_targets
-%ifarch x86_64
-BuildRequires:  musl-libc-static(x86-32)
-BuildRequires:  musl-libc-static(x86-64)
-%else
-BuildRequires:  musl-libc-static
-%endif
-%endif
-
 %if %defined wasm_targets
 BuildRequires:  clang
 BuildRequires:  lld
@@ -398,32 +386,6 @@ Requires:       {{name}} = {{verrel}}
 %description std-static-{{triple}}
 This package includes the standard libraries for building applications
 written in Rust for the MinGW target {{triple}}.
-
-]], "{{(%w+)}}", subs)
-    print(s)
-  end
-end}
-%endif
-
-%if %defined musl_targets
-%{lua: do
-  for triple in string.gmatch(rpm.expand("%{musl_targets}"), "%S+") do
-    local subs = {
-      triple = triple,
-      name = rpm.expand("%{name}"),
-      verrel = rpm.expand("%{version}-%{release}"),
-    }
-    local s = string.gsub([[
-
-%package std-static-{{triple}}
-Summary:        Standard library for Rust {{triple}}
-BuildArch:      noarch
-Requires:       {{name}} = {{verrel}}
-Recommends:     musl-gcc
-
-%description std-static-{{triple}}
-This package includes the standard libraries for building applications
-written in Rust for the musl libc target {{triple}}.
 
 ]], "{{(%w+)}}", subs)
     print(s)
@@ -637,6 +599,7 @@ test -f '%{local_rust_root}/bin/rustc'
 %patch -P3 -p1
 %patch -P4 -p1
 %patch -P5 -p1
+%patch -P6 -p1
 
 %if %with disabled_libssh2
 %patch -P100 -p1
@@ -654,17 +617,8 @@ sed -i.try-python -e '/^try python3 /i try "%{__python3}" "$@"' ./configure
 sed -i.rust-src -e "s#@BUILDDIR@#$PWD#" ./src/etc/rust-gdb
 
 %if %without bundled_llvm
-%if %defined musl_targets
-# Save files needed by musl before deleting the llvm-project directory.
-%patch -P6 -p1
-mv -t . src/llvm-project/compiler-rt/lib/crt/crt{begin,end}.c src/llvm-project/libunwind
-rm -rf src/llvm-project
-mkdir -p src/llvm-project
-mv -t src/llvm-project libunwind
-%else
 rm -rf src/llvm-project/
 mkdir -p src/llvm-project/libunwind/
-%endif
 %endif
 
 # Remove other unused vendored libraries
@@ -787,18 +741,6 @@ fi
 end}
 %endif
 
-%if %defined musl_targets
-%{lua: do
-  local cfg = ""
-  for triple in string.gmatch(rpm.expand("%{musl_targets}"), "%S+") do
-    local arch = string.sub(triple, 1, 4) == "i686" and "i386" or string.match(triple, "[^-]*")
-    cfg = cfg .. " --set target." .. triple .. ".musl-root=" .. rpm.expand("%{_musl_" .. arch .. "_sysroot}")
-    cfg = cfg .. " --set target." .. triple .. ".musl-libdir=" .. rpm.expand("%{_musl_" .. arch .. "_libdir}")
-  end
-  rpm.define("musl_target_config " .. cfg)
-end}
-%endif
-
 %if %defined wasm_targets
 %make_build --quiet -C %{wasi_libc_dir} CC=clang AR=llvm-ar NM=llvm-nm
 %{lua: do
@@ -829,7 +771,6 @@ PROFILER=$(find %{_libdir}/clang -type f -name 'libclang_rt.profile-*.a')
   --set target.%{rust_triple}.ranlib=%{__ranlib} \
   ${PROFILER:+--set target.%{rust_triple}.profiler="$PROFILER"} \
   %{?mingw_target_config} \
-  %{?musl_target_config} \
   %{?wasm_target_config} \
   --python=%{__python3} \
   --local-rust-root=%{local_rust_root} \
@@ -856,7 +797,7 @@ PROFILER=$(find %{_libdir}/clang -type f -name 'libclang_rt.profile-*.a')
 %{__python3} ./x.py build -j "$ncpus"
 %{__python3} ./x.py doc
 
-for triple in %{?mingw_targets} %{?musl_targets} %{?wasm_targets}; do
+for triple in %{?mingw_targets} %{?wasm_targets}; do
   %{__python3} ./x.py build --target=$triple std
 done
 
@@ -868,7 +809,7 @@ done
 
 DESTDIR=%{buildroot} %{__python3} ./x.py install
 
-for triple in %{?mingw_targets} %{?musl_targets} %{?wasm_targets}; do
+for triple in %{?mingw_targets} %{?wasm_targets}; do
   DESTDIR=%{buildroot} %{__python3} ./x.py install --target=$triple std
 done
 
@@ -966,7 +907,7 @@ env RUSTC=%{buildroot}%{_bindir}/rustc \
     %{buildroot}%{_bindir}/cargo run --manifest-path build/hello-world/Cargo.toml
 
 # Try a build sanity-check for other targets
-for triple in %{?mingw_targets} %{?musl_targets} %{?wasm_targets}; do
+for triple in %{?mingw_targets} %{?wasm_targets}; do
   env RUSTC=%{buildroot}%{_bindir}/rustc \
       LD_LIBRARY_PATH="%{buildroot}%{_libdir}:$LD_LIBRARY_PATH" \
       %{buildroot}%{_bindir}/cargo build --manifest-path build/hello-world/Cargo.toml --target=$triple
@@ -1033,30 +974,6 @@ rm -rf "./build/%{rust_triple}/stage2-tools/%{rust_triple}/cit/"
 %exclude {{rustlibdir}}/{{triple}}/lib/*.dll
 %exclude {{rustlibdir}}/{{triple}}/lib/*.dll.a
 %exclude {{rustlibdir}}/{{triple}}/lib/self-contained
-
-]], "{{(%w+)}}", subs)
-    print(s)
-  end
-end}
-%endif
-
-
-%if %defined musl_targets
-%{lua: do
-  for triple in string.gmatch(rpm.expand("%{musl_targets}"), "%S+") do
-    local subs = {
-      triple = triple,
-      rustlibdir = rpm.expand("%{rustlibdir}"),
-    }
-    local s = string.gsub([[
-
-%files std-static-{{triple}}
-%dir {{rustlibdir}}
-%dir {{rustlibdir}}/{{triple}}
-%dir {{rustlibdir}}/{{triple}}/lib
-{{rustlibdir}}/{{triple}}/lib/*.rlib
-%dir {{rustlibdir}}/{{triple}}/lib/self-contained
-{{rustlibdir}}/{{triple}}/lib/self-contained/*.[ao]
 
 ]], "{{(%w+)}}", subs)
     print(s)
@@ -1167,8 +1084,8 @@ end}
 
 
 %changelog
-* Tue Aug 08 2023 David Michael <fedora.dm0@gmail.com> - 1.71.1-2
-- Build musl target subpackages for aarch64 and x86_64.
+* Thu Aug 24 2023 Josh Stone <jistone@redhat.com> - 1.72.0-1
+- Update to 1.72.0.
 
 * Mon Aug 07 2023 Josh Stone <jistone@redhat.com> - 1.71.1-1
 - Update to 1.71.1.
