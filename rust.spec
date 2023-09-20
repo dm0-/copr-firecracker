@@ -90,10 +90,10 @@
 %endif
 
 Name:           rust
-Version:        1.72.0
+Version:        1.72.1
 Release:        2%{?dist}
 Summary:        The Rust Programming Language
-License:        (ASL 2.0 or MIT) and (BSD and MIT)
+License:        (Apache-2.0 OR MIT) AND (Artistic-2.0 AND BSD-3-Clause AND ISC AND MIT AND MPL-2.0 AND Unicode-DFS-2016)
 # ^ written as: (rust itself) and (bundled libraries)
 URL:            https://www.rust-lang.org
 ExclusiveArch:  %{rust_arches}
@@ -244,6 +244,10 @@ Provides:       bundled(llvm) = %{bundled_llvm_version}
 BuildRequires:  cmake >= 2.8.11
 %if 0%{?epel} == 7
 %global llvm llvm14
+%endif
+# not ready for llvm-17 yet...
+%if 0%{?fedora} >= 39
+%global llvm llvm16
 %endif
 %if %defined llvm
 %global llvm_root %{_libdir}/%{llvm}
@@ -1174,8 +1178,12 @@ end}
 
 
 %changelog
-* Thu Aug 24 2023 David Michael <fedora.dm0@gmail.com> - 1.72.0-2
+* Wed Sep 20 2023 David Michael <fedora.dm0@gmail.com> - 1.72.1-2
 - Build musl target subpackages for aarch64 and x86_64.
+
+* Tue Sep 19 2023 Josh Stone <jistone@redhat.com> - 1.72.1-1
+- Update to 1.72.1.
+- Migrated to SPDX license
 
 * Thu Aug 24 2023 Josh Stone <jistone@redhat.com> - 1.72.0-1
 - Update to 1.72.0.
