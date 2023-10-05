@@ -721,7 +721,7 @@ fi
 %define profiler %{clang_resource_dir}/lib/%{_arch}-redhat-linux-gnu/libclang_rt.profile.a
 %else
 # The exact profiler path is version dependent..
-%define profiler %(echo %{_libdir}/clang/*/lib/libclang_rt.profile-%{_arch}.a)
+%define profiler %(echo %{_libdir}/clang/??/lib/libclang_rt.profile-*.a)
 %endif
 test -r "%{profiler}"
 
