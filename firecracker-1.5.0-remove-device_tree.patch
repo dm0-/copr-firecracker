@@ -1,9 +1,9 @@
 This crate is unmaintained for many years with license issues and deprecation
-warnings, but it is only used for two aarch64 tests.
+warnings, and it is only used for two aarch64 tests.
 
 --- a/src/vmm/Cargo.toml
 +++ b/src/vmm/Cargo.toml
-@@ -39,7 +39,6 @@
+@@ -42,7 +42,6 @@
  virtio_gen = { path = "../virtio_gen" }
  
  [dev-dependencies]
@@ -13,7 +13,7 @@ warnings, but it is only used for two aarch64 tests.
  [[bench]]
 --- a/src/vmm/src/arch/aarch64/fdt.rs
 +++ b/src/vmm/src/arch/aarch64/fdt.rs
-@@ -497,6 +497,7 @@
+@@ -494,6 +494,7 @@
      }
  
      #[test]
@@ -21,7 +21,7 @@ warnings, but it is only used for two aarch64 tests.
      fn test_create_fdt() {
          let regions = arch_memory_regions(layout::FDT_MAX_SIZE + 0x1000);
          let mem = utils::vm_memory::test_utils::create_anon_guest_memory(&regions, false)
-@@ -555,6 +556,7 @@
+@@ -552,6 +553,7 @@
      }
  
      #[test]

@@ -1,24 +1,24 @@
-The build does not run benches, and the criterion crate is retired in Fedora.
+The package build does not run benches.
 
 --- a/src/snapshot/Cargo.toml
 +++ b/src/snapshot/Cargo.toml
-@@ -12,9 +12,6 @@
- versionize_derive = "0.1.5"
+@@ -16,9 +16,6 @@
  thiserror = "1.0.32"
+ displaydoc = "0.2.4"
  
 -[dev-dependencies]
--criterion = { version = "0.4.0", default-features = false }
+-criterion = { version = "0.5.0", default-features = false }
 -
  [[bench]]
  name = "version_map"
  harness = false
 --- a/src/vmm/Cargo.toml
 +++ b/src/vmm/Cargo.toml
-@@ -39,7 +39,6 @@
+@@ -42,7 +42,6 @@
  virtio_gen = { path = "../virtio_gen" }
  
  [dev-dependencies]
--criterion = { version = "0.4.0", default-features = false }
+-criterion = { version = "0.5.0", default-features = false }
  device_tree = "1.1.0"
  proptest = { version = "1.0.0", default-features = false, features = ["std"] }
  
