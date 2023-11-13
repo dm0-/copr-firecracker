@@ -1,9 +1,15 @@
+Name:           rust
+Version:        1.73.0
+Release:        2%{?dist}
+Summary:        The Rust Programming Language
+License:        (Apache-2.0 OR MIT) AND (Artistic-2.0 AND BSD-3-Clause AND ISC AND MIT AND MPL-2.0 AND Unicode-DFS-2016)
+# ^ written as: (rust itself) and (bundled libraries)
+URL:            https://www.rust-lang.org
+
 # Only x86_64, i686, and aarch64 are Tier 1 platforms at this time.
 # https://doc.rust-lang.org/nightly/rustc/platform-support.html
 %global rust_arches x86_64 i686 armv7hl aarch64 ppc64le s390x riscv64
-
-# The channel can be stable, beta, or nightly
-%{!?channel: %global channel stable}
+ExclusiveArch:  %{rust_arches}
 
 # To bootstrap from scratch, set the channel and date from src/stage0.json
 # e.g. 1.59.0 wants rustc: 1.58.0-2022-01-13
@@ -87,20 +93,13 @@
 %bcond_without rustc_pgo
 %endif
 
-Name:           rust
-Version:        1.73.0
-Release:        2%{?dist}
-Summary:        The Rust Programming Language
-License:        (Apache-2.0 OR MIT) AND (Artistic-2.0 AND BSD-3-Clause AND ISC AND MIT AND MPL-2.0 AND Unicode-DFS-2016)
-# ^ written as: (rust itself) and (bundled libraries)
-URL:            https://www.rust-lang.org
-ExclusiveArch:  %{rust_arches}
-
-%if "%{channel}" == "stable"
-%global rustc_package rustc-%{version}-src
-%else
-%global rustc_package rustc-%{channel}-src
-%endif
+# Detect non-stable channels from the version, like 1.74.0~beta.1
+%{lua: do
+  local version = rpm.expand("%{version}")
+  local version_channel, subs = string.gsub(version, "^.*~(%w+).*$", "%1", 1)
+  rpm.define("channel " .. (subs ~= 0 and version_channel or "stable"))
+  rpm.define("rustc_package rustc-" .. version_channel .. "-src")
+end}
 Source0:        https://static.rust-lang.org/dist/%{rustc_package}.tar.xz
 Source1:        %{wasi_libc_source}
 # Sources for bootstrap_arches are inserted by lua below
