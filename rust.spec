@@ -126,6 +126,8 @@ Patch6:         0001-bootstrap-only-show-PGO-warnings-when-verbose.patch
 # Simple rpm macros for rust-toolset (as opposed to full rust-packaging)
 Source100:      macros.rust-toolset
 Source101:      macros.rust-srpm
+Source102:      cargo_vendor.attr
+Source103:      cargo_vendor.prov
 
 # Disable cargo->libgit2->libssh2 on RHEL, as it's not approved for FIPS (rhbz1732949)
 Patch100:       rustc-1.75.0-disable-libssh2.patch
@@ -858,6 +860,8 @@ rm -f %{buildroot}%{rustlibdir}/%{rust_triple}/bin/rust-ll*
 # This allows users to build packages using Rust Toolset.
 %{__install} -D -m 644 %{S:100} %{buildroot}%{rpmmacrodir}/macros.rust-toolset
 %{__install} -D -m 644 %{S:101} %{buildroot}%{rpmmacrodir}/macros.rust-srpm
+%{__install} -D -m 644 %{S:102} %{buildroot}%{_fileattrsdir}/cargo_vendor.attr
+%{__install} -D -m 755 %{S:103} %{buildroot}%{_rpmconfigdir}/cargo_vendor.prov
 %endif
 
 
@@ -1042,6 +1046,8 @@ rm -rf "./build/%{rust_triple}/stage2-tools/%{rust_triple}/cit/"
 
 %files toolset
 %{rpmmacrodir}/macros.rust-toolset
+%{_fileattrsdir}/cargo_vendor.attr
+%{_rpmconfigdir}/cargo_vendor.prov
 %endif
 
 
