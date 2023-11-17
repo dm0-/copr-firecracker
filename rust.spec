@@ -1,16 +1,22 @@
+Name:           rust
+Version:        1.74.0
+Release:        1%{?dist}
+Summary:        The Rust Programming Language
+License:        (Apache-2.0 OR MIT) AND (Artistic-2.0 AND BSD-3-Clause AND ISC AND MIT AND MPL-2.0 AND Unicode-DFS-2016)
+# ^ written as: (rust itself) and (bundled libraries)
+URL:            https://www.rust-lang.org
+
 # Only x86_64, i686, and aarch64 are Tier 1 platforms at this time.
 # https://doc.rust-lang.org/nightly/rustc/platform-support.html
 %global rust_arches x86_64 i686 armv7hl aarch64 ppc64le s390x riscv64
-
-# The channel can be stable, beta, or nightly
-%{!?channel: %global channel stable}
+ExclusiveArch:  %{rust_arches}
 
 # To bootstrap from scratch, set the channel and date from src/stage0.json
 # e.g. 1.59.0 wants rustc: 1.58.0-2022-01-13
 # or nightly wants some beta-YYYY-MM-DD
-%global bootstrap_version 1.72.0
-%global bootstrap_channel 1.72.0
-%global bootstrap_date 2023-08-24
+%global bootstrap_version 1.73.0
+%global bootstrap_channel 1.73.0
+%global bootstrap_date 2023-10-05
 
 # Only the specified arches will use bootstrap binaries.
 # NOTE: Those binaries used to be uploaded with every new release, but that was
@@ -25,24 +31,16 @@
 %ifarch x86_64
 %if 0%{?fedora}
 %global mingw_targets i686-pc-windows-gnu x86_64-pc-windows-gnu
-%global musl_targets i686-unknown-linux-musl x86_64-unknown-linux-musl
 %endif
 %global wasm_targets wasm32-unknown-unknown wasm32-wasi
 %if 0%{?fedora} || 0%{?rhel} >= 10
 %global extra_targets x86_64-unknown-none x86_64-unknown-uefi
 %endif
-%elif 0%{?fedora}
-# This needs the rust_triple function below, but I don't feel like moving it.
-%global mingw_targets %{_target_cpu}-unknown-linux-musl
 %endif
-%global all_targets %{?mingw_targets} %{?musl_targets} %{?wasm_targets} %{?extra_targets}
+%global all_targets %{?mingw_targets} %{?wasm_targets} %{?extra_targets}
 %define target_enabled() %{lua:
   print(string.find(rpm.expand(" %{all_targets} "), rpm.expand(" %1 "), 1, true) or 0)
 }
-
-# Use the bundled musl by default.  It's not set up to share the library, and
-# Fedora's static libunwind package is incompatible (built against glibc).
-%bcond_without bundled_musl_libc
 
 # We need CRT files for *-wasi targets, at least as new as the commit in
 # src/ci/docker/host-x86_64/dist-various-2/build-wasi-toolchain.sh
@@ -65,22 +63,20 @@
 # We can also choose to just use Rust's bundled LLVM, in case the system LLVM
 # is insufficient.  Rust currently requires LLVM 15.0+.
 %global min_llvm_version 15.0.0
-%global bundled_llvm_version 17.0.2
+%global bundled_llvm_version 17.0.4
 %bcond_with bundled_llvm
 
-# Requires stable libgit2 1.6, and not the next minor soname change.
+# Requires stable libgit2 1.7, and not the next minor soname change.
 # This needs to be consistent with the bindings in vendor/libgit2-sys.
-%global min_libgit2_version 1.6.4
-%global next_libgit2_version 1.7.0~
-%global bundled_libgit2_version 1.6.4
-%if 0%{?fedora} >= 38
+%global min_libgit2_version 1.7.1
+%global next_libgit2_version 1.8.0~
+%global bundled_libgit2_version 1.7.1
+%if 0%{?fedora} >= 39
 %bcond_with bundled_libgit2
 %else
 %bcond_without bundled_libgit2
 %endif
 
-# needs libssh2_userauth_publickey_frommemory
-%global min_libssh2_version 1.6.0
 %if 0%{?rhel}
 # Disable cargo->libgit2->libssh2 on RHEL, as it's not approved for FIPS (rhbz1732949)
 %bcond_without disabled_libssh2
@@ -95,20 +91,13 @@
 %bcond_without rustc_pgo
 %endif
 
-Name:           rust
-Version:        1.73.0
-Release:        3%{?dist}
-Summary:        The Rust Programming Language
-License:        (Apache-2.0 OR MIT) AND (Artistic-2.0 AND BSD-3-Clause AND ISC AND MIT AND MPL-2.0 AND Unicode-DFS-2016)
-# ^ written as: (rust itself) and (bundled libraries)
-URL:            https://www.rust-lang.org
-ExclusiveArch:  %{rust_arches}
-
-%if "%{channel}" == "stable"
-%global rustc_package rustc-%{version}-src
-%else
-%global rustc_package rustc-%{channel}-src
-%endif
+# Detect non-stable channels from the version, like 1.74.0~beta.1
+%{lua: do
+  local version = rpm.expand("%{version}")
+  local version_channel, subs = string.gsub(version, "^.*~(%w+).*$", "%1", 1)
+  rpm.define("channel " .. (subs ~= 0 and version_channel or "stable"))
+  rpm.define("rustc_package rustc-" .. version_channel .. "-src")
+end}
 Source0:        https://static.rust-lang.org/dist/%{rustc_package}.tar.xz
 Source1:        %{wasi_libc_source}
 # Sources for bootstrap_arches are inserted by lua below
@@ -129,24 +118,13 @@ Patch3:         0001-Let-environment-variables-override-some-default-CPUs.patch
 Patch4:         0001-bootstrap-allow-disabling-target-self-contained.patch
 Patch5:         0002-set-an-external-library-path-for-wasm32-wasi.patch
 
-# The dist-src tarball doesn't include .github/
-# https://github.com/rust-lang/rust/pull/115109
-Patch6:         0001-Skip-ExpandYamlAnchors-when-the-config-is-missing.patch
-
-# wasi: round up the size for aligned_alloc
-# https://github.com/rust-lang/rust/pull/115254
-Patch7:         0001-wasi-round-up-the-size-for-aligned_alloc.patch
-
-# Adjust Fedora packaging flags as needed for a different libc.
-Patch99:        %{name}-1.73.0-fix-musl-bootstrap.patch
-
 ### RHEL-specific patches below ###
 
 # Simple rpm macros for rust-toolset (as opposed to full rust-packaging)
 Source100:      macros.rust-toolset
 
 # Disable cargo->libgit2->libssh2 on RHEL, as it's not approved for FIPS (rhbz1732949)
-Patch100:       rustc-1.73.0-disable-libssh2.patch
+Patch100:       rustc-1.74.0-disable-libssh2.patch
 
 # Get the Rust triple for any arch.
 %{lua: function rust_triple(arch)
@@ -223,7 +201,7 @@ BuildRequires:  (pkgconfig(libgit2) >= %{min_libgit2_version} with pkgconfig(lib
 %endif
 
 %if %{without disabled_libssh2}
-BuildRequires:  pkgconfig(libssh2) >= %{min_libssh2_version}
+BuildRequires:  pkgconfig(libssh2)
 %endif
 
 %if 0%{?rhel} == 8
@@ -234,14 +212,11 @@ BuildRequires:  python3
 BuildRequires:  python3-rpm-macros
 
 %if %with bundled_llvm
-BuildRequires:  cmake3 >= 3.13.4
+BuildRequires:  cmake >= 3.20.0
 BuildRequires:  ninja-build
 Provides:       bundled(llvm) = %{bundled_llvm_version}
 %else
-BuildRequires:  cmake >= 2.8.11
-%if 0%{?epel} == 7
-%global llvm llvm14
-%endif
+BuildRequires:  cmake >= 3.5.1
 %if %defined llvm
 %global llvm_root %{_libdir}/%{llvm}
 %else
@@ -276,20 +251,7 @@ Requires:       %{name}-std-static%{?_isa} = %{version}-%{release}
 # https://github.com/rust-lang/rust/issues/11937
 Requires:       /usr/bin/cc
 
-%if 0%{?epel} == 7
-%global devtoolset_name devtoolset-11
-BuildRequires:  %{devtoolset_name}-binutils
-BuildRequires:  %{devtoolset_name}-gcc
-BuildRequires:  %{devtoolset_name}-gcc-c++
-%global devtoolset_bindir /opt/rh/%{devtoolset_name}/root/usr/bin
-%global __cc     %{devtoolset_bindir}/gcc
-%global __cxx    %{devtoolset_bindir}/g++
-%global __ar     %{devtoolset_bindir}/ar
-%global __ranlib %{devtoolset_bindir}/ranlib
-%global __strip  %{devtoolset_bindir}/strip
-%else
 %global __ranlib %{_bindir}/ranlib
-%endif
 
 # ALL Rust libraries are private, because they don't keep an ABI.
 %global _privatelibs lib(.*-[[:xdigit:]]{16}*|rustc.*)[.]so.*
@@ -323,13 +285,6 @@ BuildRequires:  mingw32-gcc
 BuildRequires:  mingw64-gcc
 BuildRequires:  mingw32-winpthreads-static
 BuildRequires:  mingw64-winpthreads-static
-%endif
-
-%if %defined musl_targets
-BuildRequires:  musl-libc-static%{?_isa}
-%ifarch x86_64
-BuildRequires:  musl-libc-static(x86-32)
-%endif
 %endif
 
 %if %defined wasm_targets
@@ -401,15 +356,6 @@ Provides:       mingw64-rustc = %{version}-%{release}
 BuildArch:      noarch
 %target_description x86_64-pc-windows-gnu MinGW
 %endif
-
-%{lua: for target in string.gmatch(rpm.expand("%{?musl_targets}"), "%S+") do
-  print(rpm.expand(string.gsub([[
-%target_package {{target}}
-Requires:       musl-libc-static%[ "{{target}}" == "i686-unknown-linux-musl" ? "(x86-32)" : "%{?_isa}" ]
-BuildArch:      noarch
-%target_description {{target}} musl
-]], "{{(%w+)}}", { target = target }) .. "\n"))
-end}
 
 %if %target_enabled wasm32-unknown-unknown
 %target_package wasm32-unknown-unknown
@@ -612,8 +558,6 @@ rm -rf %{wasi_libc_dir}/dlmalloc/
 %if %without bundled_wasi_libc
 %patch -P5 -p1
 %endif
-%patch -P6 -p1
-%patch -P7 -p1
 
 %if %with disabled_libssh2
 %patch -P100 -p1
@@ -626,30 +570,25 @@ sed -i.try-python -e '/^try python3 /i try "%{__python3}" "$@"' ./configure
 sed -i.rust-src -e "s#@BUILDDIR@#$PWD#" ./src/etc/rust-gdb
 
 %if %without bundled_llvm
-%if %{defined musl_targets} && %{with bundled_musl_libc}
-%patch -P99 -p1
-mv -t . src/llvm-project/compiler-rt/lib/builtins/crt{begin,end}.c src/llvm-project/libunwind
-rm -rf src/llvm-project
-mkdir -p src/llvm-project
-mv -t src/llvm-project libunwind
-%else
 rm -rf src/llvm-project/
 mkdir -p src/llvm-project/libunwind/
 %endif
-%endif
 
-# Remove other unused vendored libraries
-rm -rf vendor/curl-sys*/curl/
-rm -rf vendor/*jemalloc-sys*/jemalloc/
-rm -rf vendor/libffi-sys*/libffi/
-rm -rf vendor/libmimalloc-sys*/c_src/mimalloc/
-rm -rf vendor/libssh2-sys*/libssh2/
-rm -rf vendor/libz-sys*/src/zlib{,-ng}/
-rm -rf vendor/lzma-sys*/xz-*/
-rm -rf vendor/openssl-src*/openssl/
+
+# Remove other unused vendored libraries. This leaves the directory in place,
+# because some build scripts watch them, e.g. "cargo:rerun-if-changed=curl".
+%define clear_dir() find ./%1 -mindepth 1 -delete
+%clear_dir vendor/curl-sys*/curl/
+%clear_dir vendor/*jemalloc-sys*/jemalloc/
+%clear_dir vendor/libffi-sys*/libffi/
+%clear_dir vendor/libmimalloc-sys*/c_src/mimalloc/
+%clear_dir vendor/libssh2-sys*/libssh2/
+%clear_dir vendor/libz-sys*/src/zlib{,-ng}/
+%clear_dir vendor/lzma-sys*/xz-*/
+%clear_dir vendor/openssl-src*/openssl/
 
 %if %without bundled_libgit2
-rm -rf vendor/libgit2-sys*/libgit2/
+%clear_dir vendor/libgit2-sys*/libgit2/
 %endif
 
 %if %with disabled_libssh2
@@ -658,12 +597,6 @@ rm -rf vendor/libssh2-sys*/
 
 # This only affects the transient rust-installer, but let it use our dynamic xz-libs
 sed -i.lzma -e '/LZMA_API_STATIC/d' src/bootstrap/tool.rs
-
-%if %{with bundled_llvm} && 0%{?epel} == 7
-mkdir -p cmake-bin
-ln -s /usr/bin/cmake3 cmake-bin/cmake
-%global cmake_path $PWD/cmake-bin
-%endif
 
 %if %{without bundled_llvm} && %{with llvm_static}
 # Static linking to distro LLVM needs to add -lffi
@@ -703,9 +636,6 @@ end}
 
 # Set up shared environment variables for build/install/check
 %global rust_env %{?rustflags:RUSTFLAGS="%{rustflags}"} %{rustc_target_cpus}
-%if %defined cmake_path
-%global rust_env %{?rust_env} PATH="%{cmake_path}:$PATH"
-%endif
 %if %without disabled_libssh2
 # convince libssh2-sys to use the distro libssh2
 %global rust_env %{?rust_env} LIBSSH2_SYS_USE_PKG_CONFIG=1
@@ -746,20 +676,6 @@ fi
 }
 %endif
 
-%if %defined musl_targets
-%{lua: do
-  local cfg = ""
-  for triple in string.gmatch(rpm.expand("%{musl_targets}"), "%S+") do
-    local arch = string.sub(triple, 1, 4) == "i686" and "i386" or string.match(triple, "[^-]*")
-    cfg = cfg .. " --set target." .. triple .. rpm.expand(".llvm-libunwind=%[ %{with bundled_musl_libc} ? \"in-tree\" : \"system\" ]")
-    cfg = cfg .. " --set target." .. triple .. rpm.expand(".musl-root=%{_musl_" .. arch .. "_sysroot}")
-    cfg = cfg .. " --set target." .. triple .. rpm.expand(".musl-libdir=%{_musl_" .. arch .. "_libdir}")
-    cfg = cfg .. " --set target." .. triple .. rpm.expand(".self-contained=%[ %{with bundled_musl_libc} ? \"true\" : \"false\" ]")
-  end
-  rpm.define("musl_target_config" .. cfg)
-end}
-%endif
-
 %if %defined wasm_targets
 %if %with bundled_wasi_libc
 %make_build --quiet -C %{wasi_libc_dir} MALLOC_IMPL=emmalloc CC=clang AR=llvm-ar NM=llvm-nm
@@ -791,7 +707,6 @@ test -r "%{profiler}"
   --set target.%{rust_triple}.ranlib=%{__ranlib} \
   --set target.%{rust_triple}.profiler="%{profiler}" \
   %{?mingw_target_config} \
-  %{?musl_target_config} \
   %{?wasm_target_config} \
   --python=%{__python3} \
   --local-rust-root=%{local_rust_root} \
@@ -951,7 +866,7 @@ rm -f %{buildroot}%{rustlibdir}/%{rust_triple}/bin/rust-ll*
   test -r default_*.profraw
 
   # Try a build sanity-check for other std-enabled targets
-  for triple in %{?mingw_targets} %{?musl_targets} %{?wasm_targets}; do
+  for triple in %{?mingw_targets} %{?wasm_targets}; do
     %{buildroot}%{_bindir}/cargo build --verbose --target=$triple
   done
 )
@@ -1018,19 +933,6 @@ rm -rf "./build/%{rust_triple}/stage2-tools/%{rust_triple}/cit/"
 %exclude %{rustlibdir}/x86_64-pc-windows-gnu/lib/*.dll
 %exclude %{rustlibdir}/x86_64-pc-windows-gnu/lib/*.dll.a
 %endif
-
-%{lua: for target in string.gmatch(rpm.expand("%{?musl_targets}"), "%S+") do
-  print(rpm.expand(string.gsub([[
-%target_files {{target}}
-%if %with bundled_musl_libc
-%dir %{rustlibdir}/{{target}}/lib/self-contained
-%{rustlibdir}/{{target}}/lib/self-contained/*crt*.o
-%{rustlibdir}/{{target}}/lib/self-contained/libc.a
-%{rustlibdir}/{{target}}/lib/self-contained/libunwind.a
-%exclude %{rustlibdir}/{{target}}/lib/libunwind.a
-%endif
-]], "{{(%w+)}}", { target = target }) .. "\n"))
-end}
 
 %if %target_enabled wasm32-unknown-unknown
 %target_files wasm32-unknown-unknown
@@ -1125,8 +1027,8 @@ end}
 
 
 %changelog
-* Tue Oct 31 2023 David Michael <fedora.dm0@gmail.com> - 1.73.0-3
-- Build musl target subpackages.
+* Thu Nov 16 2023 Josh Stone <jistone@redhat.com> - 1.74.0-1
+- Update to 1.74.0.
 
 * Thu Oct 26 2023 Josh Stone <jistone@redhat.com> - 1.73.0-2
 - Use thin-LTO and PGO for rustc itself.

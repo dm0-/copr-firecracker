@@ -1,4 +1,4 @@
-From 3016b2b7052d8b01d50c3a3c6591aeb99d918ca3 Mon Sep 17 00:00:00 2001
+From 461f64c60ec897d8e9caa85190ac27fe81871ebf Mon Sep 17 00:00:00 2001
 From: Josh Stone <jistone@redhat.com>
 Date: Thu, 28 Sep 2023 18:18:16 -0700
 Subject: [PATCH 2/2] set an external library path for wasm32-wasi
@@ -10,10 +10,10 @@ Subject: [PATCH 2/2] set an external library path for wasm32-wasi
  3 files changed, 16 insertions(+), 1 deletion(-)
 
 diff --git a/compiler/rustc_codegen_ssa/src/back/link.rs b/compiler/rustc_codegen_ssa/src/back/link.rs
-index b603a8787460..40d878b64479 100644
+index c4a0f6291e7f..9421f2fda303 100644
 --- a/compiler/rustc_codegen_ssa/src/back/link.rs
 +++ b/compiler/rustc_codegen_ssa/src/back/link.rs
-@@ -1475,6 +1475,12 @@ fn get_object_file_path(sess: &Session, name: &str, self_contained: bool) -> Pat
+@@ -1490,6 +1490,12 @@ fn get_object_file_path(sess: &Session, name: &str, self_contained: bool) -> Pat
              return file_path;
          }
      }
@@ -26,7 +26,7 @@ index b603a8787460..40d878b64479 100644
      for search_path in fs.search_paths() {
          let file_path = search_path.dir.join(name);
          if file_path.exists() {
-@@ -1967,6 +1973,9 @@ fn add_library_search_dirs(cmd: &mut dyn Linker, sess: &Session, self_contained:
+@@ -1982,6 +1988,9 @@ fn add_library_search_dirs(cmd: &mut dyn Linker, sess: &Session, self_contained:
          let lib_path = sess.target_filesearch(PathKind::All).get_self_contained_lib_path();
          cmd.include_path(&fix_windows_verbatim_for_gcc(&lib_path));
      }
@@ -37,10 +37,10 @@ index b603a8787460..40d878b64479 100644
  
  /// Add options making relocation sections in the produced ELF files read-only
 diff --git a/compiler/rustc_target/src/spec/mod.rs b/compiler/rustc_target/src/spec/mod.rs
-index 2365dfaf1af8..35f3a686cf67 100644
+index 1bcb1f353159..33d9c54922cb 100644
 --- a/compiler/rustc_target/src/spec/mod.rs
 +++ b/compiler/rustc_target/src/spec/mod.rs
-@@ -1653,6 +1653,7 @@ pub struct TargetOptions {
+@@ -1701,6 +1701,7 @@ pub struct TargetOptions {
      /// Objects to link before and after all other object code.
      pub pre_link_objects: CrtObjects,
      pub post_link_objects: CrtObjects,
@@ -48,7 +48,7 @@ index 2365dfaf1af8..35f3a686cf67 100644
      /// Same as `(pre|post)_link_objects`, but when self-contained linking mode is enabled.
      pub pre_link_objects_self_contained: CrtObjects,
      pub post_link_objects_self_contained: CrtObjects,
-@@ -2124,6 +2125,7 @@ fn default() -> TargetOptions {
+@@ -2175,6 +2176,7 @@ fn default() -> TargetOptions {
              relro_level: RelroLevel::None,
              pre_link_objects: Default::default(),
              post_link_objects: Default::default(),
