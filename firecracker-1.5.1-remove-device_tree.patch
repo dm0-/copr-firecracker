@@ -3,14 +3,14 @@ warnings, and it is only used for two aarch64 tests.
 
 --- a/src/vmm/Cargo.toml
 +++ b/src/vmm/Cargo.toml
-@@ -42,7 +42,6 @@
+@@ -43,7 +43,6 @@
  virtio_gen = { path = "../virtio_gen" }
  
  [dev-dependencies]
 -device_tree = "1.1.0"
  proptest = { version = "1.0.0", default-features = false, features = ["std"] }
+ itertools = "0.12.0"
  
- [[bench]]
 --- a/src/vmm/src/arch/aarch64/fdt.rs
 +++ b/src/vmm/src/arch/aarch64/fdt.rs
 @@ -494,6 +494,7 @@

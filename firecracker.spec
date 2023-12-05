@@ -1,6 +1,6 @@
 # The RPM macro cargo_target can be defined to specify the Rust target to use
 # during the build.  This defaults to musl for security benefits in Copr.
-%if ! %defined cargo_target
+%if ! %{defined cargo_target}
 %global cargo_target %{_target_cpu}-unknown-linux-musl
 %endif
 
@@ -11,7 +11,7 @@
 %bcond jailer   %{lua:print(rpm.expand("%{cargo_target}"):find("musl") or 0)}
 
 Name:           firecracker
-Version:        1.5.0
+Version:        1.5.1
 Release:        1%{?dist}
 
 Summary:        Secure and fast microVMs for serverless computing
@@ -29,11 +29,11 @@ Provides:       bundled(crate(micro_http)) = 0.1.0^gita4d632f
 # Edit crate dependencies to track what is packaged in Fedora.
 Patch:          %{name}-1.5.0-remove-aws-lc-rs.patch
 Patch:          %{name}-1.5.0-remove-cargo_toml.patch
-Patch:          %{name}-1.5.0-remove-criterion.patch
-Patch:          %{name}-1.5.0-remove-device_tree.patch
+Patch:          %{name}-1.5.1-remove-criterion.patch
+Patch:          %{name}-1.5.1-remove-device_tree.patch
 
 BuildRequires:  cargo-rpm-macros >= 24
-%if %defined cargo_target
+%if %{defined cargo_target}
 BuildRequires:  rust-std-static-%{cargo_target}
 %endif
 
@@ -102,6 +102,9 @@ done
 
 
 %changelog
+* Tue Dec 05 2023 David Michael <fedora.dm0@gmail.com> - 1.5.1-1
+- Update to the 1.5.1 release.
+
 * Thu Oct 12 2023 David Michael <fedora.dm0@gmail.com> - 1.5.0-1
 - Update to the 1.5.0 release.
 
