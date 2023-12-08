@@ -1,5 +1,5 @@
 Name:           rust
-Version:        1.74.0
+Version:        1.74.1
 Release:        2%{?dist}
 Summary:        The Rust Programming Language
 License:        (Apache-2.0 OR MIT) AND (Artistic-2.0 AND BSD-3-Clause AND ISC AND MIT AND MPL-2.0 AND Unicode-DFS-2016)
@@ -1090,8 +1090,11 @@ end}
 
 
 %changelog
-* Fri Nov 17 2023 David Michael <fedora.dm0@gmail.com> - 1.74.0-2
+* Fri Dec 08 2023 David Michael <fedora.dm0@gmail.com> - 1.74.1-2
 - Build musl target subpackages.
+
+* Thu Dec 07 2023 Josh Stone <jistone@redhat.com> - 1.74.1-1
+- Update to 1.74.1.
 
 * Thu Nov 16 2023 Josh Stone <jistone@redhat.com> - 1.74.0-1
 - Update to 1.74.0.
