@@ -1,6 +1,6 @@
 Name:           rust
 Version:        1.77.0
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        The Rust Programming Language
 License:        (Apache-2.0 OR MIT) AND (Artistic-2.0 AND BSD-3-Clause AND ISC AND MIT AND MPL-2.0 AND Unicode-DFS-2016)
 # ^ written as: (rust itself) and (bundled libraries)
@@ -36,6 +36,9 @@ ExclusiveArch:  %{rust_arches}
 %if 0%{?fedora} || 0%{?rhel} >= 10
 %global extra_targets x86_64-unknown-none x86_64-unknown-uefi
 %endif
+%endif
+%ifarch aarch64
+%global extra_targets aarch64-unknown-none-softfloat
 %endif
 %global all_targets %{?mingw_targets} %{?wasm_targets} %{?extra_targets}
 %define target_enabled() %{lua:
@@ -413,6 +416,12 @@ Requires:       lld
 %target_package x86_64-unknown-uefi
 Requires:       lld
 %target_description x86_64-unknown-uefi embedded
+%endif
+
+%if %target_enabled aarch64-unknown-none-softfloat
+%target_package aarch64-unknown-none-softfloat
+Requires:       lld
+%target_description aarch64-unknown-none-softfloat embedded
 %endif
 
 
@@ -994,6 +1003,10 @@ rm -rf "./build/%{rust_triple}/stage2-tools/%{rust_triple}/cit/"
 %target_files x86_64-unknown-uefi
 %endif
 
+%if %target_enabled aarch64-unknown-none-softfloat
+%target_files aarch64-unknown-none-softfloat
+%endif
+
 
 %files debugger-common
 %dir %{rustlibdir}
@@ -1071,6 +1084,9 @@ rm -rf "./build/%{rust_triple}/stage2-tools/%{rust_triple}/cit/"
 
 
 %changelog
+* Thu Mar 21 2024 Davide Cavalca <dcavalca@fedoraproject.org> - 1.77.0-2
+- Add build target for aarch64-unknown-none-softfloat
+
 * Thu Mar 21 2024 Nikita Popov <npopov@redhat.com> - 1.77.0-1
 - Update to 1.77.0
 
