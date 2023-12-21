@@ -6,7 +6,7 @@ back to the original implementation with the rand crate instead.
 
 --- a/resources/seccomp/aarch64-unknown-linux-musl.json
 +++ b/resources/seccomp/aarch64-unknown-linux-musl.json
-@@ -104,7 +104,7 @@
+@@ -108,7 +108,7 @@
              },
              {
                "syscall": "getrandom",
@@ -15,7 +15,7 @@ back to the original implementation with the rand crate instead.
              },
              {
                  "syscall": "accept4",
-@@ -206,7 +206,16 @@
+@@ -210,7 +210,16 @@
              },
              {
                  "syscall": "madvise",
@@ -35,7 +35,7 @@ back to the original implementation with the rand crate instead.
                  "syscall": "mmap",
 --- a/resources/seccomp/x86_64-unknown-linux-musl.json
 +++ b/resources/seccomp/x86_64-unknown-linux-musl.json
-@@ -104,7 +104,7 @@
+@@ -108,7 +108,7 @@
              },
              {
                "syscall": "getrandom",
@@ -44,7 +44,7 @@ back to the original implementation with the rand crate instead.
              },
              {
                  "syscall": "accept4",
-@@ -206,7 +206,16 @@
+@@ -210,7 +210,16 @@
              },
              {
                  "syscall": "madvise",
@@ -76,16 +76,16 @@ back to the original implementation with the rand crate instead.
 --- a/src/vmm/src/devices/virtio/rng/device.rs
 +++ b/src/vmm/src/devices/virtio/rng/device.rs
 @@ -5,7 +5,8 @@
- use std::sync::atomic::AtomicUsize;
+ use std::sync::atomic::AtomicU32;
  use std::sync::Arc;
  
 -use aws_lc_rs::rand;
 +use rand::rngs::OsRng;
 +use rand::RngCore;
  use utils::eventfd::EventFd;
- use utils::vm_memory::{GuestMemoryError, GuestMemoryMmap};
- use virtio_gen::virtio_rng::VIRTIO_F_VERSION_1;
-@@ -29,7 +30,7 @@
+ use vm_memory::GuestMemoryError;
+ 
+@@ -30,7 +31,7 @@
      /// Bad guest memory buffer: {0}
      GuestMemory(#[from] GuestMemoryError),
      /// Could not get random bytes: {0}
@@ -100,6 +100,6 @@ back to the original implementation with the rand crate instead.
          let mut rand_bytes = vec![0; iovec.len()];
 -        rand::fill(&mut rand_bytes).map_err(|err| {
 +        OsRng.try_fill_bytes(&mut rand_bytes).map_err(|err| {
-             METRICS.entropy.host_rng_fails.inc();
+             METRICS.host_rng_fails.inc();
              err
          })?;

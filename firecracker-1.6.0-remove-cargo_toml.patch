@@ -2,12 +2,12 @@ This crate has licensing issues and is only used for a developer test.
 
 --- a/src/firecracker/Cargo.toml
 +++ b/src/firecracker/Cargo.toml
-@@ -27,7 +27,6 @@
+@@ -28,7 +28,6 @@
  vmm = { path = "../vmm" }
  
  [dev-dependencies]
--cargo_toml = "0.16.3"
- regex = { version = "1.9.6", default-features = false, features = ["std", "unicode-perl"] }
+-cargo_toml = "0.17.1"
+ regex = { version = "1.10.2", default-features = false, features = ["std", "unicode-perl"] }
  
  # Dev-Dependencies for uffd examples
 --- a/src/firecracker/tests/verify_dependencies.rs

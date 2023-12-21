@@ -2,9 +2,9 @@ The package build does not run benches.
 
 --- a/src/snapshot/Cargo.toml
 +++ b/src/snapshot/Cargo.toml
-@@ -16,9 +16,6 @@
- thiserror = "1.0.32"
+@@ -17,9 +17,6 @@
  displaydoc = "0.2.4"
+ log-instrument = { path = "../log-instrument", optional = true }
  
 -[dev-dependencies]
 -criterion = { version = "0.5.0", default-features = false }
@@ -14,8 +14,8 @@ The package build does not run benches.
  harness = false
 --- a/src/vmm/Cargo.toml
 +++ b/src/vmm/Cargo.toml
-@@ -43,7 +43,6 @@
- virtio_gen = { path = "../virtio_gen" }
+@@ -48,7 +48,6 @@
+ vm-fdt = "0.2.0"
  
  [dev-dependencies]
 -criterion = { version = "0.5.0", default-features = false }
