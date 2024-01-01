@@ -1,0 +1,52 @@
+Since the Fedora source prep removes llvm-project, save the needed crt*.c files
+outside that path and point the build system at them.  Also define build flags
+that override the default packaging flags to work with musl.
+
+--- a/src/bootstrap/src/core/build_steps/llvm.rs
++++ b/src/bootstrap/src/core/build_steps/llvm.rs
+@@ -1166,8 +1166,8 @@
+             return out_dir;
+         }
+ 
+-        let crtbegin_src = builder.src.join("src/llvm-project/compiler-rt/lib/builtins/crtbegin.c");
+-        let crtend_src = builder.src.join("src/llvm-project/compiler-rt/lib/builtins/crtend.c");
++        let crtbegin_src = builder.src.join("crtbegin.c");
++        let crtend_src = builder.src.join("crtend.c");
+         if up_to_date(&crtbegin_src, &out_dir.join("crtbegin.o"))
+             && up_to_date(&crtend_src, &out_dir.join("crtendS.o"))
+         {
+@@ -1200,6 +1200,7 @@
+             .define("CRT_HAS_INITFINI_ARRAY", None)
+             .define("EH_USE_FRAME_REGISTRY", None);
+ 
++        set_musl_flags(&mut cfg, &self.target);
+         cfg.compile("crt");
+ 
+         t!(fs::copy(out_dir.join("crtbegin.o"), out_dir.join("crtbeginS.o")));
+@@ -1290,6 +1291,7 @@
+                 cfg.define("_LIBUNWIND_HIDE_SYMBOLS", "1");
+                 cfg.define("_LIBUNWIND_IS_NATIVE_ONLY", "1");
+             }
++            set_musl_flags(cfg, &self.target);
+         }
+ 
+         cc_cfg.compiler(builder.cc(self.target));
+@@ -1364,3 +1366,18 @@
+         out_dir
+     }
+ }
++
++fn set_musl_flags(cfg: &mut cc::Build, target: &TargetSelection) {
++    if !target.ends_with("-musl") {
++        return;
++    }
++
++    let mut arch = target.triple.split('-').next().unwrap();
++    if arch == "i686" {
++        arch = "i386";
++        cfg.flag("-m32");
++        cfg.flag("-fcf-protection=none");
++    }
++
++    cfg.flag(format!("--sysroot=/usr/{arch}-linux-musl").as_str());
++}
