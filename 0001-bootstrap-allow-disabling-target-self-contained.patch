@@ -1,20 +1,20 @@
-From 4acc7d53182cf83f2c776c4005fc12756ecdfe8f Mon Sep 17 00:00:00 2001
+From df0d6f1d8b46db82d7599ca8eff6e8f844cf52f2 Mon Sep 17 00:00:00 2001
 From: Josh Stone <jistone@redhat.com>
 Date: Thu, 28 Sep 2023 18:14:28 -0700
 Subject: [PATCH 1/2] bootstrap: allow disabling target self-contained
 
 ---
- config.example.toml      | 5 +++++
- src/bootstrap/compile.rs | 4 ++++
- src/bootstrap/config.rs  | 8 ++++++++
- src/bootstrap/lib.rs     | 5 +++++
+ config.example.toml                           | 5 +++++
+ src/bootstrap/src/core/build_steps/compile.rs | 4 ++++
+ src/bootstrap/src/core/config/config.rs       | 8 ++++++++
+ src/bootstrap/src/lib.rs                      | 5 +++++
  4 files changed, 22 insertions(+)
 
 diff --git a/config.example.toml b/config.example.toml
-index f3c2366d674e..c6c5e24fb592 100644
+index e5df28a49af6..2fcd8b8cb057 100644
 --- a/config.example.toml
 +++ b/config.example.toml
-@@ -798,6 +798,11 @@ changelog-seen = 2
+@@ -807,6 +807,11 @@ change-id = 116881
  # target triples containing `-none`, `nvptx`, `switch`, or `-uefi`.
  #no-std = <platform-specific> (bool)
  
@@ -26,11 +26,11 @@ index f3c2366d674e..c6c5e24fb592 100644
  # =============================================================================
  # Distribution options
  #
-diff --git a/src/bootstrap/compile.rs b/src/bootstrap/compile.rs
-index 292ccc5780fa..d4d79ce982af 100644
---- a/src/bootstrap/compile.rs
-+++ b/src/bootstrap/compile.rs
-@@ -251,6 +251,10 @@ fn copy_self_contained_objects(
+diff --git a/src/bootstrap/src/core/build_steps/compile.rs b/src/bootstrap/src/core/build_steps/compile.rs
+index 7021a9543582..11555c65ca87 100644
+--- a/src/bootstrap/src/core/build_steps/compile.rs
++++ b/src/bootstrap/src/core/build_steps/compile.rs
+@@ -302,6 +302,10 @@ fn copy_self_contained_objects(
      compiler: &Compiler,
      target: TargetSelection,
  ) -> Vec<(PathBuf, DependencyType)> {
@@ -41,11 +41,11 @@ index 292ccc5780fa..d4d79ce982af 100644
      let libdir_self_contained = builder.sysroot_libdir(*compiler, target).join("self-contained");
      t!(fs::create_dir_all(&libdir_self_contained));
      let mut target_deps = vec![];
-diff --git a/src/bootstrap/config.rs b/src/bootstrap/config.rs
-index 836328f94ef8..4ae3d853ed88 100644
---- a/src/bootstrap/config.rs
-+++ b/src/bootstrap/config.rs
-@@ -527,6 +527,7 @@ pub struct Target {
+diff --git a/src/bootstrap/src/core/config/config.rs b/src/bootstrap/src/core/config/config.rs
+index 0a9175aa3ea5..a2e028b25036 100644
+--- a/src/bootstrap/src/core/config/config.rs
++++ b/src/bootstrap/src/core/config/config.rs
+@@ -533,6 +533,7 @@ pub struct Target {
      pub wasi_root: Option<PathBuf>,
      pub qemu_rootfs: Option<PathBuf>,
      pub no_std: bool,
@@ -53,7 +53,7 @@ index 836328f94ef8..4ae3d853ed88 100644
  }
  
  impl Target {
-@@ -535,6 +536,9 @@ pub fn from_triple(triple: &str) -> Self {
+@@ -541,6 +542,9 @@ pub fn from_triple(triple: &str) -> Self {
          if triple.contains("-none") || triple.contains("nvptx") || triple.contains("switch") {
              target.no_std = true;
          }
@@ -63,7 +63,7 @@ index 836328f94ef8..4ae3d853ed88 100644
          target
      }
  }
-@@ -1033,6 +1037,7 @@ struct TomlTarget {
+@@ -1051,6 +1055,7 @@ struct TomlTarget {
          wasi_root: Option<String> = "wasi-root",
          qemu_rootfs: Option<String> = "qemu-rootfs",
          no_std: Option<bool> = "no-std",
@@ -71,21 +71,21 @@ index 836328f94ef8..4ae3d853ed88 100644
      }
  }
  
-@@ -1587,6 +1592,9 @@ fn get_table(option: &str) -> Result<TomlConfig, toml::de::Error> {
+@@ -1600,6 +1605,9 @@ fn get_table(option: &str) -> Result<TomlConfig, toml::de::Error> {
                  if let Some(s) = cfg.no_std {
                      target.no_std = s;
                  }
 +                if let Some(s) = cfg.self_contained {
 +                    target.self_contained = s;
 +                }
-                 target.cc = cfg.cc.map(PathBuf::from).or_else(|| {
-                     target.ndk.as_ref().map(|ndk| ndk_compiler(Language::C, &triple, ndk))
-                 });
-diff --git a/src/bootstrap/lib.rs b/src/bootstrap/lib.rs
-index 8b8d4b237953..c3e7a1ccc00f 100644
---- a/src/bootstrap/lib.rs
-+++ b/src/bootstrap/lib.rs
-@@ -1320,6 +1320,11 @@ fn no_std(&self, target: TargetSelection) -> Option<bool> {
+                 target.cc = cfg.cc.map(PathBuf::from);
+                 target.cxx = cfg.cxx.map(PathBuf::from);
+                 target.ar = cfg.ar.map(PathBuf::from);
+diff --git a/src/bootstrap/src/lib.rs b/src/bootstrap/src/lib.rs
+index 33b8f1a7ce72..f36e53187576 100644
+--- a/src/bootstrap/src/lib.rs
++++ b/src/bootstrap/src/lib.rs
+@@ -1335,6 +1335,11 @@ fn no_std(&self, target: TargetSelection) -> Option<bool> {
          self.config.target_config.get(&target).map(|t| t.no_std)
      }
  
