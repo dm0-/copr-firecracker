@@ -65,7 +65,7 @@ commit 8382687b88f8dd1ae60526f40175aefc8ae3aa13.
 @@ -26,12 +26,12 @@
  thiserror = "1.0.32"
  displaydoc = "0.2.4"
- userfaultfd = "0.7.0"
+ userfaultfd = "0.8.1"
 -versionize = "0.1.10"
 +versionize = "0.2.0"
  versionize_derive = "0.1.6"

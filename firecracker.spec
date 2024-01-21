@@ -12,7 +12,7 @@
 
 Name:           firecracker
 Version:        1.6.0
-Release:        2%{?dist}
+Release:        3%{?dist}
 
 Summary:        Secure and fast microVMs for serverless computing
 License:        Apache-2.0 AND (Apache-2.0 OR BSD-3-Clause) AND (Apache-2.0 OR BSL-1.0) AND (Apache-2.0 OR MIT) AND (Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT) AND BSD-3-Clause AND MIT AND (MIT OR Unlicense) AND Unicode-DFS-2016
@@ -31,6 +31,7 @@ Patch:          %{name}-1.6.0-remove-aws-lc-rs.patch
 Patch:          %{name}-1.6.0-remove-cargo_toml.patch
 Patch:          %{name}-1.6.0-remove-criterion.patch
 Patch:          %{name}-1.6.0-remove-device_tree.patch
+Patch:          %{name}-1.6.0-update-userfaultfd.patch
 Patch:          %{name}-1.6.0-update-vmm-sys-util.patch
 
 BuildRequires:  cargo-rpm-macros >= 24
@@ -104,6 +105,9 @@ done
 
 
 %changelog
+* Fri Jan 19 2024 David Michael <fedora.dm0@gmail.com> - 1.6.0-3
+- Backport the userfaultfd update for its unrecognized ioctl fixes.
+
 * Thu Jan 11 2024 David Michael <fedora.dm0@gmail.com> - 1.6.0-2
 - Backport changes to update vmm-sys-util for CVE-2023-50711.
 

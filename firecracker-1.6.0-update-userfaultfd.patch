@@ -1,0 +1,25 @@
+Update userfaultfd to match the version packaged in Fedora which fixes
+unrecognized ioctl failures.
+
+--- a/src/firecracker/Cargo.toml
++++ b/src/firecracker/Cargo.toml
+@@ -32,7 +32,7 @@
+ 
+ # Dev-Dependencies for uffd examples
+ serde = { version = "1.0.193", features = ["derive"] }
+-userfaultfd = "0.7.0"
++userfaultfd = "0.8.1"
+ 
+ [build-dependencies]
+ bincode = "1.2.1"
+--- a/src/vmm/Cargo.toml
++++ b/src/vmm/Cargo.toml
+@@ -25,7 +25,7 @@
+ timerfd = "1.5.0"
+ thiserror = "1.0.32"
+ displaydoc = "0.2.4"
+-userfaultfd = "0.7.0"
++userfaultfd = "0.8.1"
+ versionize = "0.1.10"
+ versionize_derive = "0.1.6"
+ vhost = { version = "0.9.0", features = ["vhost-user-frontend"] }
