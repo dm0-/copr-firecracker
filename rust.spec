@@ -1,6 +1,6 @@
 Name:           rust
-Version:        1.75.0
-Release:        2%{?dist}
+Version:        1.76.0
+Release:        1%{?dist}
 Summary:        The Rust Programming Language
 License:        (Apache-2.0 OR MIT) AND (Artistic-2.0 AND BSD-3-Clause AND ISC AND MIT AND MPL-2.0 AND Unicode-DFS-2016)
 # ^ written as: (rust itself) and (bundled libraries)
@@ -14,9 +14,9 @@ ExclusiveArch:  %{rust_arches}
 # To bootstrap from scratch, set the channel and date from src/stage0.json
 # e.g. 1.59.0 wants rustc: 1.58.0-2022-01-13
 # or nightly wants some beta-YYYY-MM-DD
-%global bootstrap_version 1.74.0
-%global bootstrap_channel 1.74.0
-%global bootstrap_date 2023-11-16
+%global bootstrap_version 1.75.0
+%global bootstrap_channel 1.75.0
+%global bootstrap_date 2023-12-28
 
 # Only the specified arches will use bootstrap binaries.
 # NOTE: Those binaries used to be uploaded with every new release, but that was
@@ -31,31 +31,22 @@ ExclusiveArch:  %{rust_arches}
 %ifarch x86_64
 %if 0%{?fedora}
 %global mingw_targets i686-pc-windows-gnu x86_64-pc-windows-gnu
-%global musl_targets i686-unknown-linux-musl x86_64-unknown-linux-musl
 %endif
 %global wasm_targets wasm32-unknown-unknown wasm32-wasi
 %if 0%{?fedora} || 0%{?rhel} >= 10
 %global extra_targets x86_64-unknown-none x86_64-unknown-uefi
 %endif
-%elif 0%{?fedora}
-# This needs the rust_triple function below, but I don't feel like moving it.
-%global mingw_targets %{_target_cpu}-unknown-linux-musl
 %endif
-%global all_targets %{?mingw_targets} %{?musl_targets} %{?wasm_targets} %{?extra_targets}
+%global all_targets %{?mingw_targets} %{?wasm_targets} %{?extra_targets}
 %define target_enabled() %{lua:
   print(string.find(rpm.expand(" %{all_targets} "), rpm.expand(" %1 "), 1, true) or 0)
 }
 
-# Use the bundled musl by default.  It's not set up to share the library, and
-# Fedora's static libunwind package is incompatible (built against glibc).
-%bcond_without bundled_musl_libc
-
 # We need CRT files for *-wasi targets, at least as new as the commit in
 # src/ci/docker/host-x86_64/dist-various-2/build-wasi-toolchain.sh
-# (updated per https://github.com/rust-lang/rust/pull/96907)
 %global wasi_libc_url https://github.com/WebAssembly/wasi-libc
-#global wasi_libc_ref wasi-sdk-20
-%global wasi_libc_ref bd950eb128bff337153de217b11270f948d04bb4
+#global wasi_libc_ref wasi-sdk-21
+%global wasi_libc_ref 03b228e46bb02fcc5927253e1b8ad715072b1ae4
 %global wasi_libc_name wasi-libc-%{wasi_libc_ref}
 %global wasi_libc_source %{wasi_libc_url}/archive/%{wasi_libc_ref}/%{wasi_libc_name}.tar.gz
 %global wasi_libc_dir %{_builddir}/%{wasi_libc_name}
@@ -71,7 +62,7 @@ ExclusiveArch:  %{rust_arches}
 # We can also choose to just use Rust's bundled LLVM, in case the system LLVM
 # is insufficient.  Rust currently requires LLVM 15.0+.
 %global min_llvm_version 15.0.0
-%global bundled_llvm_version 17.0.5
+%global bundled_llvm_version 17.0.6
 %bcond_with bundled_llvm
 
 # Requires stable libgit2 1.7, and not the next minor soname change.
@@ -93,9 +84,15 @@ ExclusiveArch:  %{rust_arches}
 %endif
 
 %if 0%{?__isa_bits} == 32
-# Disable PGO on 32-bit to reduce build memory
+# Reduce rustc's own debuginfo and optimizations to conserve 32-bit memory.
+# e.g. https://github.com/rust-lang/rust/issues/45854
+%global enable_debuginfo --debuginfo-level=0 --debuginfo-level-std=2
+%global enable_rust_opts --set rust.codegen-units-std=1
 %bcond_with rustc_pgo
 %else
+# Build rustc with full debuginfo, CGU=1, ThinLTO, and PGO.
+%global enable_debuginfo --debuginfo-level=2
+%global enable_rust_opts --set rust.codegen-units=1 --set rust.lto=thin
 %bcond_without rustc_pgo
 %endif
 
@@ -126,19 +123,19 @@ Patch3:         0001-Let-environment-variables-override-some-default-CPUs.patch
 Patch4:         0001-bootstrap-allow-disabling-target-self-contained.patch
 Patch5:         0002-set-an-external-library-path-for-wasm32-wasi.patch
 
-# https://github.com/rust-lang/rust/pull/117982
-Patch6:         0001-bootstrap-only-show-PGO-warnings-when-verbose.patch
-
-# Adjust Fedora packaging flags as needed for a different libc.
-Patch99:        %{name}-1.75.0-fix-musl-bootstrap.patch
+# We don't want to use the bundled library in libsqlite3-sys
+Patch6:         rustc-1.76.0-unbundle-sqlite.patch
 
 ### RHEL-specific patches below ###
 
 # Simple rpm macros for rust-toolset (as opposed to full rust-packaging)
 Source100:      macros.rust-toolset
+Source101:      macros.rust-srpm
+Source102:      cargo_vendor.attr
+Source103:      cargo_vendor.prov
 
 # Disable cargo->libgit2->libssh2 on RHEL, as it's not approved for FIPS (rhbz1732949)
-Patch100:       rustc-1.75.0-disable-libssh2.patch
+Patch100:       rustc-1.76.0-disable-libssh2.patch
 
 # Get the Rust triple for any arch.
 %{lua: function rust_triple(arch)
@@ -208,6 +205,7 @@ BuildRequires:  curl-devel
 BuildRequires:  pkgconfig(libcurl)
 BuildRequires:  pkgconfig(liblzma)
 BuildRequires:  pkgconfig(openssl)
+BuildRequires:  pkgconfig(sqlite3)
 BuildRequires:  pkgconfig(zlib)
 
 %if %{without bundled_libgit2}
@@ -301,13 +299,6 @@ BuildRequires:  mingw32-winpthreads-static
 BuildRequires:  mingw64-winpthreads-static
 %endif
 
-%if %defined musl_targets
-BuildRequires:  musl-libc-static%{?_isa}
-%ifarch x86_64
-BuildRequires:  musl-libc-static(x86-32)
-%endif
-%endif
-
 %if %defined wasm_targets
 %if %with bundled_wasi_libc
 BuildRequires:  clang
@@ -377,15 +368,6 @@ Provides:       mingw64-rustc = %{version}-%{release}
 BuildArch:      noarch
 %target_description x86_64-pc-windows-gnu MinGW
 %endif
-
-%{lua: for target in string.gmatch(rpm.expand("%{?musl_targets}"), "%S+") do
-  print(rpm.expand(string.gsub([[
-%target_package {{target}}
-Requires:       musl-libc-static%[ "{{target}}" == "i686-unknown-linux-musl" ? "(x86-32)" : "%{?_isa}" ]
-BuildArch:      noarch
-%target_description {{target}} musl
-]], "{{(%w+)}}", { target = target }) .. "\n"))
-end}
 
 %if %target_enabled wasm32-unknown-unknown
 %target_package wasm32-unknown-unknown
@@ -547,6 +529,14 @@ useful as a reference for code completion tools in various editors.
 
 %if 0%{?rhel}
 
+%package srpm-macros
+Summary:        RPM macros for building Rust source packages
+BuildArch:      noarch
+
+%description srpm-macros
+RPM macros for building source packages for Rust projects.
+
+
 %package toolset
 Summary:        Rust Toolset
 BuildArch:      noarch
@@ -601,16 +591,8 @@ sed -i.try-python -e '/^try python3 /i try "%{__python3}" "$@"' ./configure
 sed -i.rust-src -e "s#@BUILDDIR@#$PWD#" ./src/etc/rust-gdb
 
 %if %without bundled_llvm
-%if %{defined musl_targets} && %{with bundled_musl_libc}
-%patch -P99 -p1
-mv -t . src/llvm-project/compiler-rt/lib/builtins/crt{begin,end}.c src/llvm-project/libunwind
-rm -rf src/llvm-project
-mkdir -p src/llvm-project
-mv -t src/llvm-project libunwind
-%else
 rm -rf src/llvm-project/
 mkdir -p src/llvm-project/libunwind/
-%endif
 %endif
 
 
@@ -621,6 +603,7 @@ mkdir -p src/llvm-project/libunwind/
 %clear_dir vendor/*jemalloc-sys*/jemalloc/
 %clear_dir vendor/libffi-sys*/libffi/
 %clear_dir vendor/libmimalloc-sys*/c_src/mimalloc/
+%clear_dir vendor/libsqlite3-sys*/{sqlite3,sqlcipher}/
 %clear_dir vendor/libssh2-sys*/libssh2/
 %clear_dir vendor/libz-sys*/src/zlib{,-ng}/
 %clear_dir vendor/lzma-sys*/xz-*/
@@ -673,24 +656,18 @@ find -name '*.rs' -type f -perm /111 -exec chmod -v -x '{}' '+'
   print(env)
 end}
 
-# Set up shared environment variables for build/install/check
-%global rust_env %{?rustflags:RUSTFLAGS="%{rustflags}"} %{rustc_target_cpus}
-%if %without disabled_libssh2
-# convince libssh2-sys to use the distro libssh2
-%global rust_env %{?rust_env} LIBSSH2_SYS_USE_PKG_CONFIG=1
-%endif
-%global export_rust_env %{?rust_env:export %{rust_env}}
+# Set up shared environment variables for build/install/check.
+# *_USE_PKG_CONFIG=1 convinces *-sys crates to use the system library.
+%global rust_env %{shrink:
+  %{?rustflags:RUSTFLAGS="%{rustflags}"}
+  %{rustc_target_cpus}
+  LIBSQLITE3_SYS_USE_PKG_CONFIG=1
+  %{!?with_disabled_libssh2:LIBSSH2_SYS_USE_PKG_CONFIG=1}
+}
+%global export_rust_env export %{rust_env}
 
 %build
 %{export_rust_env}
-
-%ifarch %{arm} %{ix86}
-# full debuginfo is exhausting memory; just do libstd for now
-# https://github.com/rust-lang/rust/issues/45854
-%define enable_debuginfo --debuginfo-level=0 --debuginfo-level-std=2
-%else
-%define enable_debuginfo --debuginfo-level=2
-%endif
 
 # Some builders have relatively little memory for their CPU count.
 # At least 2GB per CPU is a good rule of thumb for building rustc.
@@ -713,20 +690,6 @@ fi
   --set target.x86_64-pc-windows-gnu.ranlib=%{mingw64_ranlib}
   --set target.x86_64-pc-windows-gnu.self-contained=false
 }
-%endif
-
-%if %defined musl_targets
-%{lua: do
-  local cfg = ""
-  for triple in string.gmatch(rpm.expand("%{musl_targets}"), "%S+") do
-    local arch = string.sub(triple, 1, 4) == "i686" and "i386" or string.match(triple, "[^-]*")
-    cfg = cfg .. " --set target." .. triple .. rpm.expand(".llvm-libunwind=%[ %{with bundled_musl_libc} ? \"in-tree\" : \"system\" ]")
-    cfg = cfg .. " --set target." .. triple .. rpm.expand(".musl-root=%{_musl_" .. arch .. "_sysroot}")
-    cfg = cfg .. " --set target." .. triple .. rpm.expand(".musl-libdir=%{_musl_" .. arch .. "_libdir}")
-    cfg = cfg .. " --set target." .. triple .. rpm.expand(".self-contained=%[ %{with bundled_musl_libc} ? \"true\" : \"false\" ]")
-  end
-  rpm.define("musl_target_config" .. cfg)
-end}
 %endif
 
 %if %defined wasm_targets
@@ -760,7 +723,6 @@ test -r "%{profiler}"
   --set target.%{rust_triple}.ranlib=%{__ranlib} \
   --set target.%{rust_triple}.profiler="%{profiler}" \
   %{?mingw_target_config} \
-  %{?musl_target_config} \
   %{?wasm_target_config} \
   --python=%{__python3} \
   --local-rust-root=%{local_rust_root} \
@@ -771,8 +733,7 @@ test -r "%{profiler}"
   --disable-llvm-static-stdcpp \
   --disable-rpath \
   %{enable_debuginfo} \
-  --set rust.codegen-units=1 \
-  --set rust.lto=thin \
+  %{enable_rust_opts} \
   --set build.build-stage=2 \
   --set build.doc-stage=2 \
   --set build.install-stage=2 \
@@ -785,32 +746,32 @@ test -r "%{profiler}"
   --release-channel=%{channel} \
   --release-description="%{?fedora:Fedora }%{?rhel:Red Hat }%{version}-%{release}"
 
-%global x %{__python3} ./x.py
-%global xk %{x} --keep-stage=0 --keep-stage=1
+%global __x %{__python3} ./x.py
+%global __xk %{__x} --keep-stage=0 --keep-stage=1
 
 %if %with rustc_pgo
 # Build the compiler with profile instrumentation
 PROFRAW="$PWD/build/profiles"
 PROFDATA="$PWD/build/rustc.profdata"
 mkdir -p "$PROFRAW"
-%{x} build -j "$ncpus" sysroot --rust-profile-generate="$PROFRAW"
+%{__x} build -j "$ncpus" sysroot --rust-profile-generate="$PROFRAW"
 # Build cargo as a workload to generate compiler profiles
-env LLVM_PROFILE_FILE="$PROFRAW/default_%%m_%%p.profraw" %{xk} build cargo
+env LLVM_PROFILE_FILE="$PROFRAW/default_%%m_%%p.profraw" %{__xk} build cargo
 llvm-profdata merge -o "$PROFDATA" "$PROFRAW"
 rm -r "$PROFRAW" build/%{rust_triple}/stage2*/
 # Rebuild the compiler using the profile data
-%{x} build -j "$ncpus" sysroot --rust-profile-use="$PROFDATA"
+%{__x} build -j "$ncpus" sysroot --rust-profile-use="$PROFDATA"
 %else
 # Build the compiler without PGO
-%{x} build -j "$ncpus" sysroot
+%{__x} build -j "$ncpus" sysroot
 %endif
 
 # Build everything else normally
-%{xk} build
-%{xk} doc
+%{__xk} build
+%{__xk} doc
 
 for triple in %{?all_targets} ; do
-  %{xk} build --target=$triple std
+  %{__xk} build --target=$triple std
 done
 
 %install
@@ -819,10 +780,10 @@ done
 %endif
 %{export_rust_env}
 
-DESTDIR=%{buildroot} %{xk} install
+DESTDIR=%{buildroot} %{__xk} install
 
 for triple in %{?all_targets} ; do
-  DESTDIR=%{buildroot} %{xk} install --target=$triple std
+  DESTDIR=%{buildroot} %{__xk} install --target=$triple std
 done
 
 # The rls stub doesn't have an install target, but we can just copy it.
@@ -898,6 +859,9 @@ rm -f %{buildroot}%{rustlibdir}/%{rust_triple}/bin/rust-ll*
 %if 0%{?rhel}
 # This allows users to build packages using Rust Toolset.
 %{__install} -D -m 644 %{S:100} %{buildroot}%{rpmmacrodir}/macros.rust-toolset
+%{__install} -D -m 644 %{S:101} %{buildroot}%{rpmmacrodir}/macros.rust-srpm
+%{__install} -D -m 644 %{S:102} %{buildroot}%{_fileattrsdir}/cargo_vendor.attr
+%{__install} -D -m 755 %{S:103} %{buildroot}%{_rpmconfigdir}/cargo_vendor.prov
 %endif
 
 
@@ -921,7 +885,7 @@ TMP_HELLO=$(mktemp -d)
   test -r default_*.profraw
 
   # Try a build sanity-check for other std-enabled targets
-  for triple in %{?mingw_targets} %{?musl_targets} %{?wasm_targets}; do
+  for triple in %{?mingw_targets} %{?wasm_targets}; do
     %{buildroot}%{_bindir}/cargo build --verbose --target=$triple
   done
 )
@@ -932,17 +896,17 @@ rm -rf "$TMP_HELLO"
 
 # Bootstrap is excluded because it's not something we ship, and a lot of its
 # tests are geared toward the upstream CI environment.
-%{xk} test --no-fail-fast --skip src/bootstrap || :
+%{__xk} test --no-fail-fast --skip src/bootstrap || :
 rm -rf "./build/%{rust_triple}/test/"
 
-%{xk} test --no-fail-fast cargo || :
+%{__xk} test --no-fail-fast cargo || :
 rm -rf "./build/%{rust_triple}/stage2-tools/%{rust_triple}/cit/"
 
-%{xk} test --no-fail-fast clippy || :
+%{__xk} test --no-fail-fast clippy || :
 
-%{xk} test --no-fail-fast rust-analyzer || :
+%{__xk} test --no-fail-fast rust-analyzer || :
 
-%{xk} test --no-fail-fast rustfmt || :
+%{__xk} test --no-fail-fast rustfmt || :
 
 
 %ldconfig_scriptlets
@@ -989,19 +953,6 @@ rm -rf "./build/%{rust_triple}/stage2-tools/%{rust_triple}/cit/"
 %exclude %{rustlibdir}/x86_64-pc-windows-gnu/lib/*.dll
 %exclude %{rustlibdir}/x86_64-pc-windows-gnu/lib/*.dll.a
 %endif
-
-%{lua: for target in string.gmatch(rpm.expand("%{?musl_targets}"), "%S+") do
-  print(rpm.expand(string.gsub([[
-%target_files {{target}}
-%if %with bundled_musl_libc
-%dir %{rustlibdir}/{{target}}/lib/self-contained
-%{rustlibdir}/{{target}}/lib/self-contained/*crt*.o
-%{rustlibdir}/{{target}}/lib/self-contained/libc.a
-%{rustlibdir}/{{target}}/lib/self-contained/libunwind.a
-%exclude %{rustlibdir}/{{target}}/lib/libunwind.a
-%endif
-]], "{{(%w+)}}", { target = target }) .. "\n"))
-end}
 
 %if %target_enabled wasm32-unknown-unknown
 %target_files wasm32-unknown-unknown
@@ -1090,14 +1041,26 @@ end}
 
 
 %if 0%{?rhel}
+%files srpm-macros
+%{rpmmacrodir}/macros.rust-srpm
+
 %files toolset
 %{rpmmacrodir}/macros.rust-toolset
+%{_fileattrsdir}/cargo_vendor.attr
+%{_rpmconfigdir}/cargo_vendor.prov
 %endif
 
 
 %changelog
-* Mon Jan 01 2024 David Michael <fedora.dm0@gmail.com> - 1.75.0-2
-- Build musl target subpackages.
+* Thu Feb 08 2024 Josh Stone <jistone@redhat.com> - 1.76.0-1
+- Update to 1.76.0.
+
+* Tue Jan 30 2024 Josh Stone <jistone@redhat.com> - 1.75.0-3
+- Consolidate 32-bit build compromises.
+- Update rust-toolset and add rust-srpm-macros for ELN.
+
+* Fri Jan 26 2024 Fedora Release Engineering <releng@fedoraproject.org> - 1.75.0-2
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_40_Mass_Rebuild
 
 * Sun Dec 31 2023 Josh Stone <jistone@redhat.com> - 1.75.0-1
 - Update to 1.75.0.
