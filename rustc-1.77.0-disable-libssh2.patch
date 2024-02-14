@@ -1,0 +1,44 @@
+diff -up rustc-beta-src/src/tools/cargo/Cargo.lock.orig rustc-beta-src/src/tools/cargo/Cargo.lock
+--- rustc-beta-src/src/tools/cargo/Cargo.lock.orig	2024-02-14 14:06:05.881165093 +0100
++++ rustc-beta-src/src/tools/cargo/Cargo.lock	2024-02-14 14:06:27.169456166 +0100
+@@ -2072,7 +2072,6 @@ checksum = "ee4126d8b4ee5c9d9ea891dd875c
+ dependencies = [
+  "cc",
+  "libc",
+- "libssh2-sys",
+  "libz-sys",
+  "openssl-sys",
+  "pkg-config",
+@@ -2113,20 +2112,6 @@ dependencies = [
+  "pkg-config",
+  "vcpkg",
+ ]
+-
+-[[package]]
+-name = "libssh2-sys"
+-version = "0.3.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "2dc8a030b787e2119a731f1951d6a773e2280c660f8ec4b0f5e1505a386e71ee"
+-dependencies = [
+- "cc",
+- "libc",
+- "libz-sys",
+- "openssl-sys",
+- "pkg-config",
+- "vcpkg",
+-]
+ 
+ [[package]]
+ name = "libz-sys"
+diff -up rustc-beta-src/src/tools/cargo/Cargo.toml.orig rustc-beta-src/src/tools/cargo/Cargo.toml
+--- rustc-beta-src/src/tools/cargo/Cargo.toml.orig	2024-02-14 14:06:10.400226884 +0100
++++ rustc-beta-src/src/tools/cargo/Cargo.toml	2024-02-14 14:06:51.225785086 +0100
+@@ -44,7 +44,7 @@ curl = "0.4.44"
+ curl-sys = "0.4.70"
+ filetime = "0.2.23"
+ flate2 = { version = "1.0.28", default-features = false, features = ["zlib"] }
+-git2 = "0.18.2"
++git2 = { version = "0.18.2", default-features = false, features = ["https"] }
+ git2-curl = "0.19.0"
+ gix = { version = "0.57.1", default-features = false, features = ["blocking-http-transport-curl", "progress-tree", "revision"] }
+ gix-features-for-configuration-only = { version = "0.37.1", package = "gix-features", features = [ "parallel" ] }
