@@ -66,6 +66,8 @@ ExclusiveArch:  %{rust_arches}
 # is insufficient.  Rust currently requires LLVM 15.0+.
 %global min_llvm_version 15.0.0
 %global bundled_llvm_version 17.0.6
+#global llvm_compat_version 17
+%global llvm llvm%{?llvm_compat_version}
 %bcond_with bundled_llvm
 
 # Requires stable libgit2 1.7, and not the next minor soname change.
@@ -250,10 +252,9 @@ BuildRequires:  ninja-build
 Provides:       bundled(llvm) = %{bundled_llvm_version}
 %else
 BuildRequires:  cmake >= 3.5.1
-%if %defined llvm
+%if %defined llvm_compat_version
 %global llvm_root %{_libdir}/%{llvm}
 %else
-%global llvm llvm
 %global llvm_root %{_prefix}
 %endif
 BuildRequires:  %{llvm}-devel >= %{min_llvm_version}
@@ -335,7 +336,7 @@ find '%{buildroot}%{rustlibdir}'/wasm*/lib -type f -regex '.*\\.\\(a\\|rlib\\)' 
 %endif
 
 # For profiler_builtins
-BuildRequires:  compiler-rt
+BuildRequires:  compiler-rt%{?llvm_compat_version}
 
 # This component was removed as of Rust 1.69.0.
 # https://github.com/rust-lang/rust/pull/101841
@@ -735,11 +736,16 @@ fi
 %endif
 
 # Find the compiler-rt library for the Rust profiler_builtins crate.
+%if %defined llvm_compat_version
+# clang_resource_dir is not defined for compat builds.
+%define profiler /usr/lib/clang/%{llvm_compat_version}/lib/%{_arch}-redhat-linux-gnu/libclang_rt.profile.a
+%else
 %if 0%{?clang_major_version} >= 17
 %define profiler %{clang_resource_dir}/lib/%{_arch}-redhat-linux-gnu/libclang_rt.profile.a
 %else
 # The exact profiler path is version dependent..
 %define profiler %(echo %{_libdir}/clang/??/lib/libclang_rt.profile-*.a)
+%endif
 %endif
 test -r "%{profiler}"
 
@@ -789,7 +795,7 @@ mkdir -p "%{profraw}"
 env LLVM_PROFILE_FILE="%{profraw}/default_%%m_%%p.profraw" \
   %{__x} --keep-stage=0 --keep-stage=1 build cargo
 # Finalize the profile data and clean up the raw files
-llvm-profdata merge -o "%{profdata}" "%{profraw}"
+%{llvm_root}/bin/llvm-profdata merge -o "%{profdata}" "%{profraw}"
 rm -r "%{profraw}" build/%{rust_triple}/stage2*/
 # Redefine the macro to use that profile data from now on
 %global __x %{__x} --rust-profile-use="%{profdata}"
