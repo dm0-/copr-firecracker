@@ -137,6 +137,10 @@ Patch5:         0002-set-an-external-library-path-for-wasm32-wasi.patch
 # We don't want to use the bundled library in libsqlite3-sys
 Patch6:         rustc-1.77.0-unbundle-sqlite.patch
 
+# Backports of fixes for LLVM 18 compatibility
+Patch7:         120529.patch
+Patch8:         121088.patch
+
 ### RHEL-specific patches below ###
 
 # Simple rpm macros for rust-toolset (as opposed to full rust-packaging)
@@ -590,6 +594,9 @@ rm -rf %{wasi_libc_dir}/dlmalloc/
 %patch -P5 -p1
 %endif
 %patch -P6 -p1
+
+%patch -P7 -p1
+%patch -P8 -p1
 
 %if %with disabled_libssh2
 %patch -P100 -p1
