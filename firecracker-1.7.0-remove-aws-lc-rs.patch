@@ -1,8 +1,13 @@
-The AWS-LC project is yet another TLS library that was would have to be worked
-into Fedora, while Firecracker only uses it for its randomness functions.  The
-reason stated for choosing AWS-LC is that Amazon might get it FIPS-certified
-some day.  This patch reverts 246a308ef6d1054f7551ebeee7f0191b8518d2ad to go
-back to the original implementation with the rand crate instead.
+The AWS libcrypto Rust crate is a ring-compatible API built on the libcrypto C
+library and its libssl C++ library.  Packaging aws-lc-rs in Fedora would likely
+require unbundling and integrating them into crypto-policies and/or special
+review by the packaging committee and security team.  Upstream chose this crate
+because it was submitted for FIPS certification.  Firecracker only uses it to
+get some random bytes, so this reverts 246a308ef6d1054f7551ebeee7f0191b8518d2ad
+to go back to the original implementation with the rand crate instead.  If FIPS
+certification becomes necessary for the RPM, the ring crate is now also working
+towards ceritifcation and is already in Fedora, so this patch could potentially
+switch to that in the future.
 
 --- a/resources/seccomp/aarch64-unknown-linux-musl.json
 +++ b/resources/seccomp/aarch64-unknown-linux-musl.json
@@ -68,11 +73,11 @@ back to the original implementation with the rand crate instead.
  bench = false
  
  [dependencies]
--aws-lc-rs = "1.0.2"
+-aws-lc-rs = { version = "1.6.1", features = ["bindgen"] }
 +rand = "0.8.5"
  bitflags = "2.0.2"
  derive_more = { version = "0.99.17", default-features = false, features = ["from", "display"] }
- event-manager = "0.3.0"
+ event-manager = "0.4.0"
 --- a/src/vmm/src/devices/virtio/rng/device.rs
 +++ b/src/vmm/src/devices/virtio/rng/device.rs
 @@ -5,7 +5,8 @@

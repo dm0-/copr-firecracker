@@ -3,7 +3,7 @@ warnings, and it is only used for two aarch64 tests.
 
 --- a/src/vmm/Cargo.toml
 +++ b/src/vmm/Cargo.toml
-@@ -48,7 +48,6 @@
+@@ -47,7 +47,6 @@
  vm-fdt = "0.2.0"
  
  [dev-dependencies]
@@ -13,19 +13,19 @@ warnings, and it is only used for two aarch64 tests.
  
 --- a/src/vmm/src/arch/aarch64/fdt.rs
 +++ b/src/vmm/src/arch/aarch64/fdt.rs
-@@ -499,6 +499,7 @@
+@@ -497,6 +497,7 @@
      }
  
      #[test]
 +    #[cfg(not(test))]
      fn test_create_fdt() {
-         let regions = arch_memory_regions(layout::FDT_MAX_SIZE + 0x1000);
-         let mem =
-@@ -557,6 +558,7 @@
+         let mem = arch_mem(layout::FDT_MAX_SIZE + 0x1000);
+         let kvm = Kvm::new().unwrap();
+@@ -553,6 +554,7 @@
      }
  
      #[test]
 +    #[cfg(not(test))]
      fn test_create_fdt_with_initrd() {
-         let regions = arch_memory_regions(layout::FDT_MAX_SIZE + 0x1000);
-         let mem =
+         let mem = arch_mem(layout::FDT_MAX_SIZE + 0x1000);
+         let kvm = Kvm::new().unwrap();
