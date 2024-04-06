@@ -1,6 +1,6 @@
 Name:           rust
 Version:        1.77.0
-Release:        2%{?dist}
+Release:        3%{?dist}
 Summary:        The Rust Programming Language
 License:        (Apache-2.0 OR MIT) AND (Artistic-2.0 AND BSD-3-Clause AND ISC AND MIT AND MPL-2.0 AND Unicode-DFS-2016)
 # ^ written as: (rust itself) and (bundled libraries)
@@ -143,6 +143,9 @@ Patch6:         rustc-1.77.0-unbundle-sqlite.patch
 # Backports of fixes for LLVM 18 compatibility
 Patch7:         120529.patch
 Patch8:         121088.patch
+
+# https://github.com/rust-lang/rust/pull/123520
+Patch9:         0001-bootstrap-move-all-of-rustc-s-flags-to-rustc_cargo.patch
 
 ### RHEL-specific patches below ###
 
@@ -603,9 +606,9 @@ rm -rf %{wasi_libc_dir}/dlmalloc/
 %patch -P5 -p1
 %endif
 %patch -P6 -p1
-
 %patch -P7 -p1
 %patch -P8 -p1
+%patch -P9 -p1
 
 %if %with disabled_libssh2
 %patch -P100 -p1
@@ -775,31 +778,32 @@ test -r "%{profiler}"
   --release-description="%{?fedora:Fedora }%{?rhel:Red Hat }%{version}-%{release}"
 
 %global __x %{__python3} ./x.py
-%global __xk %{__x} --keep-stage=0 --keep-stage=1
 
 %if %with rustc_pgo
 # Build the compiler with profile instrumentation
-PROFRAW="$PWD/build/profiles"
-PROFDATA="$PWD/build/rustc.profdata"
-mkdir -p "$PROFRAW"
-%{__x} build -j "$ncpus" sysroot --rust-profile-generate="$PROFRAW"
+%define profraw $PWD/build/profiles
+%define profdata $PWD/build/rustc.profdata
+mkdir -p "%{profraw}"
+%{__x} build -j "$ncpus" sysroot --rust-profile-generate="%{profraw}"
 # Build cargo as a workload to generate compiler profiles
-env LLVM_PROFILE_FILE="$PROFRAW/default_%%m_%%p.profraw" %{__xk} build cargo
-llvm-profdata merge -o "$PROFDATA" "$PROFRAW"
-rm -r "$PROFRAW" build/%{rust_triple}/stage2*/
-# Rebuild the compiler using the profile data
-%{__x} build -j "$ncpus" sysroot --rust-profile-use="$PROFDATA"
-%else
-# Build the compiler without PGO
-%{__x} build -j "$ncpus" sysroot
+env LLVM_PROFILE_FILE="%{profraw}/default_%%m_%%p.profraw" \
+  %{__x} --keep-stage=0 --keep-stage=1 build cargo
+# Finalize the profile data and clean up the raw files
+llvm-profdata merge -o "%{profdata}" "%{profraw}"
+rm -r "%{profraw}" build/%{rust_triple}/stage2*/
+# Redefine the macro to use that profile data from now on
+%global __x %{__x} --rust-profile-use="%{profdata}"
 %endif
 
+# Build the compiler normally (with or without PGO)
+%{__x} build -j "$ncpus" sysroot
+
 # Build everything else normally
-%{__xk} build
-%{__xk} doc
+%{__x} build
+%{__x} doc
 
 for triple in %{?all_targets} ; do
-  %{__xk} build --target=$triple std
+  %{__x} build --target=$triple std
 done
 
 %install
@@ -808,10 +812,10 @@ done
 %endif
 %{export_rust_env}
 
-DESTDIR=%{buildroot} %{__xk} install
+DESTDIR=%{buildroot} %{__x} install
 
 for triple in %{?all_targets} ; do
-  DESTDIR=%{buildroot} %{__xk} install --target=$triple std
+  DESTDIR=%{buildroot} %{__x} install --target=$triple std
 done
 
 # The rls stub doesn't have an install target, but we can just copy it.
@@ -924,17 +928,17 @@ rm -rf "$TMP_HELLO"
 
 # Bootstrap is excluded because it's not something we ship, and a lot of its
 # tests are geared toward the upstream CI environment.
-%{__xk} test --no-fail-fast --skip src/bootstrap || :
+%{__x} test --no-fail-fast --skip src/bootstrap || :
 rm -rf "./build/%{rust_triple}/test/"
 
-%{__xk} test --no-fail-fast cargo || :
+%{__x} test --no-fail-fast cargo || :
 rm -rf "./build/%{rust_triple}/stage2-tools/%{rust_triple}/cit/"
 
-%{__xk} test --no-fail-fast clippy || :
+%{__x} test --no-fail-fast clippy || :
 
-%{__xk} test --no-fail-fast rust-analyzer || :
+%{__x} test --no-fail-fast rust-analyzer || :
 
-%{__xk} test --no-fail-fast rustfmt || :
+%{__x} test --no-fail-fast rustfmt || :
 
 
 %ldconfig_scriptlets
@@ -1084,6 +1088,9 @@ rm -rf "./build/%{rust_triple}/stage2-tools/%{rust_triple}/cit/"
 
 
 %changelog
+* Fri Apr 05 2024 Josh Stone <jistone@redhat.com> - 1.77.0-3
+- Ensure more consistency in PGO flags -- fixes Cargo tests
+
 * Thu Mar 21 2024 Davide Cavalca <dcavalca@fedoraproject.org> - 1.77.0-2
 - Add build target for aarch64-unknown-none-softfloat
 
