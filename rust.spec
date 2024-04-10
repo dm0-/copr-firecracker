@@ -1,6 +1,6 @@
 Name:           rust
-Version:        1.77.0
-Release:        2%{?dist}
+Version:        1.77.2
+Release:        %autorelease
 Summary:        The Rust Programming Language
 License:        (Apache-2.0 OR MIT) AND (Artistic-2.0 AND BSD-3-Clause AND ISC AND MIT AND MPL-2.0 AND Unicode-DFS-2016)
 # ^ written as: (rust itself) and (bundled libraries)
@@ -31,24 +31,19 @@ ExclusiveArch:  %{rust_arches}
 %ifarch x86_64
 %if 0%{?fedora}
 %global mingw_targets i686-pc-windows-gnu x86_64-pc-windows-gnu
-%global musl_targets i686-unknown-linux-musl x86_64-unknown-linux-musl
 %endif
 %global wasm_targets wasm32-unknown-unknown wasm32-wasi
 %if 0%{?fedora} || 0%{?rhel} >= 10
 %global extra_targets x86_64-unknown-none x86_64-unknown-uefi
 %endif
-%elif 0%{?fedora}
-# This needs the rust_triple function below, but I don't feel like moving it.
-%global mingw_targets %{_target_cpu}-unknown-linux-musl
 %endif
-%global all_targets %{?mingw_targets} %{?musl_targets} %{?wasm_targets} %{?extra_targets}
+%ifarch aarch64
+%global extra_targets aarch64-unknown-none-softfloat
+%endif
+%global all_targets %{?mingw_targets} %{?wasm_targets} %{?extra_targets}
 %define target_enabled() %{lua:
   print(string.find(rpm.expand(" %{all_targets} "), rpm.expand(" %1 "), 1, true) or 0)
 }
-
-# Use the bundled musl by default.  It's not set up to share the library, and
-# Fedora's static libunwind package is incompatible (built against glibc).
-%bcond_without bundled_musl_libc
 
 # We need CRT files for *-wasi targets, at least as new as the commit in
 # src/ci/docker/host-x86_64/dist-various-2/build-wasi-toolchain.sh
@@ -71,6 +66,8 @@ ExclusiveArch:  %{rust_arches}
 # is insufficient.  Rust currently requires LLVM 15.0+.
 %global min_llvm_version 15.0.0
 %global bundled_llvm_version 17.0.6
+#global llvm_compat_version 17
+%global llvm llvm%{?llvm_compat_version}
 %bcond_with bundled_llvm
 
 # Requires stable libgit2 1.7, and not the next minor soname change.
@@ -149,8 +146,8 @@ Patch6:         rustc-1.77.0-unbundle-sqlite.patch
 Patch7:         120529.patch
 Patch8:         121088.patch
 
-# Adjust Fedora packaging flags as needed for a different libc.
-Patch99:        %{name}-1.76.0-fix-musl-bootstrap.patch
+# https://github.com/rust-lang/rust/pull/123520
+Patch9:         0001-bootstrap-move-all-of-rustc-s-flags-to-rustc_cargo.patch
 
 ### RHEL-specific patches below ###
 
@@ -255,10 +252,9 @@ BuildRequires:  ninja-build
 Provides:       bundled(llvm) = %{bundled_llvm_version}
 %else
 BuildRequires:  cmake >= 3.5.1
-%if %defined llvm
+%if %defined llvm_compat_version
 %global llvm_root %{_libdir}/%{llvm}
 %else
-%global llvm llvm
 %global llvm_root %{_prefix}
 %endif
 BuildRequires:  %{llvm}-devel >= %{min_llvm_version}
@@ -325,13 +321,6 @@ BuildRequires:  mingw32-winpthreads-static
 BuildRequires:  mingw64-winpthreads-static
 %endif
 
-%if %defined musl_targets
-BuildRequires:  musl-libc-static%{?_isa}
-%ifarch x86_64
-BuildRequires:  musl-libc-static(x86-32)
-%endif
-%endif
-
 %if %defined wasm_targets
 %if %with bundled_wasi_libc
 BuildRequires:  clang
@@ -347,7 +336,7 @@ find '%{buildroot}%{rustlibdir}'/wasm*/lib -type f -regex '.*\\.\\(a\\|rlib\\)' 
 %endif
 
 # For profiler_builtins
-BuildRequires:  compiler-rt
+BuildRequires:  compiler-rt%{?llvm_compat_version}
 
 # This component was removed as of Rust 1.69.0.
 # https://github.com/rust-lang/rust/pull/101841
@@ -402,15 +391,6 @@ BuildArch:      noarch
 %target_description x86_64-pc-windows-gnu MinGW
 %endif
 
-%{lua: for target in rpm.expand("%{?musl_targets}"):gmatch("%S+") do
-  print(rpm.expand(string.gsub([[
-%target_package {{target}}
-Requires:       musl-libc-static%[ "{{target}}" == "i686-unknown-linux-musl" ? "(x86-32)" : "%{?_isa}" ]
-BuildArch:      noarch
-%target_description {{target}} musl
-]], "{{(%w+)}}", { target = target }) .. "\n"))
-end}
-
 %if %target_enabled wasm32-unknown-unknown
 %target_package wasm32-unknown-unknown
 Requires:       lld >= 8.0
@@ -440,6 +420,12 @@ Requires:       lld
 %target_package x86_64-unknown-uefi
 Requires:       lld
 %target_description x86_64-unknown-uefi embedded
+%endif
+
+%if %target_enabled aarch64-unknown-none-softfloat
+%target_package aarch64-unknown-none-softfloat
+Requires:       lld
+%target_description aarch64-unknown-none-softfloat embedded
 %endif
 
 
@@ -621,9 +607,9 @@ rm -rf %{wasi_libc_dir}/dlmalloc/
 %patch -P5 -p1
 %endif
 %patch -P6 -p1
-
 %patch -P7 -p1
 %patch -P8 -p1
+%patch -P9 -p1
 
 %if %with disabled_libssh2
 %patch -P100 -p1
@@ -636,16 +622,8 @@ sed -i.try-python -e '/^try python3 /i try "%{__python3}" "$@"' ./configure
 sed -i.rust-src -e "s#@BUILDDIR@#$PWD#" ./src/etc/rust-gdb
 
 %if %without bundled_llvm
-%if %{defined musl_targets} && %{with bundled_musl_libc}
-%patch -P99 -p1
-mv -t . src/llvm-project/compiler-rt/lib/builtins/crt{begin,end}.c src/llvm-project/libunwind
-rm -rf src/llvm-project
-mkdir -p src/llvm-project
-mv -t src/llvm-project libunwind
-%else
 rm -rf src/llvm-project/
 mkdir -p src/llvm-project/libunwind/
-%endif
 %endif
 
 
@@ -745,20 +723,6 @@ fi
 }
 %endif
 
-%if %defined musl_targets
-%{lua: do
-  local cfg = ""
-  for triple in rpm.expand("%{?musl_targets}"):gmatch("%S+") do
-    local arch = triple:sub(1, 4) == "i686" and "i386" or triple:match("[^-]*")
-    cfg = cfg .. " --set target." .. triple .. rpm.expand(".llvm-libunwind=%[ %{with bundled_musl_libc} ? \"in-tree\" : \"system\" ]")
-    cfg = cfg .. " --set target." .. triple .. rpm.expand(".musl-root=%{_musl_" .. arch .. "_sysroot}")
-    cfg = cfg .. " --set target." .. triple .. rpm.expand(".musl-libdir=%{_musl_" .. arch .. "_libdir}")
-    cfg = cfg .. " --set target." .. triple .. rpm.expand(".self-contained=%[ %{with bundled_musl_libc} ? \"true\" : \"false\" ]")
-  end
-  rpm.define("musl_target_config" .. cfg)
-end}
-%endif
-
 %if %defined wasm_targets
 %if %with bundled_wasi_libc
 %make_build --quiet -C %{wasi_libc_dir} MALLOC_IMPL=emmalloc CC=clang AR=llvm-ar NM=llvm-nm
@@ -772,11 +736,16 @@ end}
 %endif
 
 # Find the compiler-rt library for the Rust profiler_builtins crate.
+%if %defined llvm_compat_version
+# clang_resource_dir is not defined for compat builds.
+%define profiler /usr/lib/clang/%{llvm_compat_version}/lib/%{_arch}-redhat-linux-gnu/libclang_rt.profile.a
+%else
 %if 0%{?clang_major_version} >= 17
 %define profiler %{clang_resource_dir}/lib/%{_arch}-redhat-linux-gnu/libclang_rt.profile.a
 %else
 # The exact profiler path is version dependent..
 %define profiler %(echo %{_libdir}/clang/??/lib/libclang_rt.profile-*.a)
+%endif
 %endif
 test -r "%{profiler}"
 
@@ -790,7 +759,6 @@ test -r "%{profiler}"
   --set target.%{rust_triple}.ranlib=%{__ranlib} \
   --set target.%{rust_triple}.profiler="%{profiler}" \
   %{?mingw_target_config} \
-  %{?musl_target_config} \
   %{?wasm_target_config} \
   --python=%{__python3} \
   --local-rust-root=%{local_rust_root} \
@@ -816,31 +784,32 @@ test -r "%{profiler}"
   --release-description="%{?fedora:Fedora }%{?rhel:Red Hat }%{version}-%{release}"
 
 %global __x %{__python3} ./x.py
-%global __xk %{__x} --keep-stage=0 --keep-stage=1
 
 %if %with rustc_pgo
 # Build the compiler with profile instrumentation
-PROFRAW="$PWD/build/profiles"
-PROFDATA="$PWD/build/rustc.profdata"
-mkdir -p "$PROFRAW"
-%{__x} build -j "$ncpus" sysroot --rust-profile-generate="$PROFRAW"
+%define profraw $PWD/build/profiles
+%define profdata $PWD/build/rustc.profdata
+mkdir -p "%{profraw}"
+%{__x} build -j "$ncpus" sysroot --rust-profile-generate="%{profraw}"
 # Build cargo as a workload to generate compiler profiles
-env LLVM_PROFILE_FILE="$PROFRAW/default_%%m_%%p.profraw" %{__xk} build cargo
-llvm-profdata merge -o "$PROFDATA" "$PROFRAW"
-rm -r "$PROFRAW" build/%{rust_triple}/stage2*/
-# Rebuild the compiler using the profile data
-%{__x} build -j "$ncpus" sysroot --rust-profile-use="$PROFDATA"
-%else
-# Build the compiler without PGO
-%{__x} build -j "$ncpus" sysroot
+env LLVM_PROFILE_FILE="%{profraw}/default_%%m_%%p.profraw" \
+  %{__x} --keep-stage=0 --keep-stage=1 build cargo
+# Finalize the profile data and clean up the raw files
+%{llvm_root}/bin/llvm-profdata merge -o "%{profdata}" "%{profraw}"
+rm -r "%{profraw}" build/%{rust_triple}/stage2*/
+# Redefine the macro to use that profile data from now on
+%global __x %{__x} --rust-profile-use="%{profdata}"
 %endif
 
+# Build the compiler normally (with or without PGO)
+%{__x} build -j "$ncpus" sysroot
+
 # Build everything else normally
-%{__xk} build
-%{__xk} doc
+%{__x} build
+%{__x} doc
 
 for triple in %{?all_targets} ; do
-  %{__xk} build --target=$triple std
+  %{__x} build --target=$triple std
 done
 
 %install
@@ -849,10 +818,10 @@ done
 %endif
 %{export_rust_env}
 
-DESTDIR=%{buildroot} %{__xk} install
+DESTDIR=%{buildroot} %{__x} install
 
 for triple in %{?all_targets} ; do
-  DESTDIR=%{buildroot} %{__xk} install --target=$triple std
+  DESTDIR=%{buildroot} %{__x} install --target=$triple std
 done
 
 # The rls stub doesn't have an install target, but we can just copy it.
@@ -954,7 +923,7 @@ TMP_HELLO=$(mktemp -d)
   test -r default_*.profraw
 
   # Try a build sanity-check for other std-enabled targets
-  for triple in %{?mingw_targets} %{?musl_targets} %{?wasm_targets}; do
+  for triple in %{?mingw_targets} %{?wasm_targets}; do
     %{buildroot}%{_bindir}/cargo build --verbose --target=$triple
   done
 )
@@ -965,17 +934,17 @@ rm -rf "$TMP_HELLO"
 
 # Bootstrap is excluded because it's not something we ship, and a lot of its
 # tests are geared toward the upstream CI environment.
-%{__xk} test --no-fail-fast --skip src/bootstrap || :
+%{__x} test --no-fail-fast --skip src/bootstrap || :
 rm -rf "./build/%{rust_triple}/test/"
 
-%{__xk} test --no-fail-fast cargo || :
+%{__x} test --no-fail-fast cargo || :
 rm -rf "./build/%{rust_triple}/stage2-tools/%{rust_triple}/cit/"
 
-%{__xk} test --no-fail-fast clippy || :
+%{__x} test --no-fail-fast clippy || :
 
-%{__xk} test --no-fail-fast rust-analyzer || :
+%{__x} test --no-fail-fast rust-analyzer || :
 
-%{__xk} test --no-fail-fast rustfmt || :
+%{__x} test --no-fail-fast rustfmt || :
 
 
 %ldconfig_scriptlets
@@ -1023,19 +992,6 @@ rm -rf "./build/%{rust_triple}/stage2-tools/%{rust_triple}/cit/"
 %exclude %{rustlibdir}/x86_64-pc-windows-gnu/lib/*.dll.a
 %endif
 
-%{lua: for target in rpm.expand("%{?musl_targets}"):gmatch("%S+") do
-  print(rpm.expand(string.gsub([[
-%target_files {{target}}
-%if %with bundled_musl_libc
-%dir %{rustlibdir}/{{target}}/lib/self-contained
-%{rustlibdir}/{{target}}/lib/self-contained/*crt*.o
-%{rustlibdir}/{{target}}/lib/self-contained/libc.a
-%{rustlibdir}/{{target}}/lib/self-contained/libunwind.a
-%exclude %{rustlibdir}/{{target}}/lib/libunwind.a
-%endif
-]], "{{(%w+)}}", { target = target }) .. "\n"))
-end}
-
 %if %target_enabled wasm32-unknown-unknown
 %target_files wasm32-unknown-unknown
 %endif
@@ -1055,6 +1011,10 @@ end}
 
 %if %target_enabled x86_64-unknown-uefi
 %target_files x86_64-unknown-uefi
+%endif
+
+%if %target_enabled aarch64-unknown-none-softfloat
+%target_files aarch64-unknown-none-softfloat
 %endif
 
 
@@ -1134,607 +1094,4 @@ end}
 
 
 %changelog
-* Fri Mar 22 2024 David Michael <fedora.dm0@gmail.com> - 1.77.0-2
-- Build musl target subpackages.
-
-* Thu Mar 21 2024 Nikita Popov <npopov@redhat.com> - 1.77.0-1
-- Update to 1.77.0
-
-* Thu Feb 08 2024 Josh Stone <jistone@redhat.com> - 1.76.0-1
-- Update to 1.76.0.
-
-* Tue Jan 30 2024 Josh Stone <jistone@redhat.com> - 1.75.0-3
-- Consolidate 32-bit build compromises.
-- Update rust-toolset and add rust-srpm-macros for ELN.
-
-* Fri Jan 26 2024 Fedora Release Engineering <releng@fedoraproject.org> - 1.75.0-2
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_40_Mass_Rebuild
-
-* Sun Dec 31 2023 Josh Stone <jistone@redhat.com> - 1.75.0-1
-- Update to 1.75.0.
-
-* Thu Dec 07 2023 Josh Stone <jistone@redhat.com> - 1.74.1-1
-- Update to 1.74.1.
-
-* Thu Nov 16 2023 Josh Stone <jistone@redhat.com> - 1.74.0-1
-- Update to 1.74.0.
-
-* Thu Oct 26 2023 Josh Stone <jistone@redhat.com> - 1.73.0-2
-- Use thin-LTO and PGO for rustc itself.
-
-* Thu Oct 05 2023 Josh Stone <jistone@redhat.com> - 1.73.0-1
-- Update to 1.73.0.
-- Drop el7 conditionals from the spec.
-
-* Fri Sep 29 2023 Josh Stone <jistone@redhat.com> - 1.72.1-3
-- Fix the profiler runtime with compiler-rt-17
-- Switch to unbundled wasi-libc on Fedora
-- Use emmalloc instead of CC0 dlmalloc when bundling wasi-libc
-
-* Mon Sep 25 2023 Josh Stone <jistone@redhat.com> - 1.72.1-2
-- Fix LLVM dependency for ELN
-- Add build target for x86_64-unknown-none
-- Add build target for x86_64-unknown-uefi
-
-* Tue Sep 19 2023 Josh Stone <jistone@redhat.com> - 1.72.1-1
-- Update to 1.72.1.
-- Migrated to SPDX license
-
-* Thu Aug 24 2023 Josh Stone <jistone@redhat.com> - 1.72.0-1
-- Update to 1.72.0.
-
-* Mon Aug 07 2023 Josh Stone <jistone@redhat.com> - 1.71.1-1
-- Update to 1.71.1.
-- Security fix for CVE-2023-38497
-
-* Tue Jul 25 2023 Josh Stone <jistone@redhat.com> - 1.71.0-3
-- Relax the suspicious_double_ref_op lint
-- Enable the profiler runtime for native hosts
-
-* Fri Jul 21 2023 Fedora Release Engineering <releng@fedoraproject.org> - 1.71.0-2
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_39_Mass_Rebuild
-
-* Mon Jul 17 2023 Josh Stone <jistone@redhat.com> - 1.71.0-1
-- Update to 1.71.0.
-
-* Fri Jun 23 2023 Josh Stone <jistone@redhat.com> - 1.70.0-2
-- Override default target CPUs to match distro settings
-
-* Thu Jun 01 2023 Josh Stone <jistone@redhat.com> - 1.70.0-1
-- Update to 1.70.0.
-
-* Fri May 05 2023 Josh Stone <jistone@redhat.com> - 1.69.0-3
-- Fix debuginfo with LLVM 16
-
-* Mon May 01 2023 Josh Stone <jistone@redhat.com> - 1.69.0-2
-- Build with LLVM 15 on Fedora 38+
-
-* Thu Apr 20 2023 Josh Stone <jistone@redhat.com> - 1.69.0-1
-- Update to 1.69.0.
-- Obsolete rust-analysis.
-
-* Tue Mar 28 2023 Josh Stone <jistone@redhat.com> - 1.68.2-1
-- Update to 1.68.2.
-
-* Thu Mar 23 2023 Josh Stone <jistone@redhat.com> - 1.68.1-1
-- Update to 1.68.1.
-
-* Thu Mar 09 2023 Josh Stone <jistone@redhat.com> - 1.68.0-1
-- Update to 1.68.0.
-
-* Tue Mar 07 2023 David Michael <fedora.dm0@gmail.com> - 1.67.1-3
-- Add a virtual Provides to rust-std-static containing the target triple.
-
-* Mon Feb 20 2023 Orion Poplawski <orion@nwra.com> - 1.67.1-2
-- Ship rust-toolset for EPEL7
-
-* Thu Feb 09 2023 Josh Stone <jistone@redhat.com> - 1.67.1-1
-- Update to 1.67.1.
-
-* Fri Feb 03 2023 Josh Stone <jistone@redhat.com> - 1.67.0-3
-- Unbundle libgit2 on Fedora 38.
-
-* Fri Jan 27 2023 Adam Williamson <awilliam@redhat.com> - 1.67.0-2
-- Backport PR #107360 to fix build of mesa
-- Backport 675fa0b3 to fix bootstrapping failure
-
-* Thu Jan 26 2023 Josh Stone <jistone@redhat.com> - 1.67.0-1
-- Update to 1.67.0.
-
-* Fri Jan 20 2023 Fedora Release Engineering <releng@fedoraproject.org> - 1.66.1-2
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_38_Mass_Rebuild
-
-* Tue Jan 10 2023 Josh Stone <jistone@redhat.com> - 1.66.1-1
-- Update to 1.66.1.
-- Security fix for CVE-2022-46176
-
-* Thu Dec 15 2022 Josh Stone <jistone@redhat.com> - 1.66.0-1
-- Update to 1.66.0.
-
-* Thu Nov 03 2022 Josh Stone <jistone@redhat.com> - 1.65.0-1
-- Update to 1.65.0.
-- rust-analyzer now obsoletes rls.
-
-* Thu Sep 22 2022 Josh Stone <jistone@redhat.com> - 1.64.0-1
-- Update to 1.64.0.
-- Add rust-analyzer.
-
-* Thu Aug 11 2022 Josh Stone <jistone@redhat.com> - 1.63.0-1
-- Update to 1.63.0.
-
-* Sat Jul 23 2022 Fedora Release Engineering <releng@fedoraproject.org> - 1.62.1-2
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_37_Mass_Rebuild
-
-* Tue Jul 19 2022 Josh Stone <jistone@redhat.com> - 1.62.1-1
-- Update to 1.62.1.
-
-* Wed Jul 13 2022 Josh Stone <jistone@redhat.com> - 1.62.0-2
-- Prevent unsound coercions from functions with opaque return types.
-
-* Thu Jun 30 2022 Josh Stone <jistone@redhat.com> - 1.62.0-1
-- Update to 1.62.0.
-
-* Mon May 23 2022 Josh Stone <jistone@redhat.com> - 1.61.0-2
-- Add missing target_feature to the list of well known cfg names
-
-* Thu May 19 2022 Josh Stone <jistone@redhat.com> - 1.61.0-1
-- Update to 1.61.0.
-- Add rust-toolset for ELN.
-
-* Thu Apr 07 2022 Josh Stone <jistone@redhat.com> - 1.60.0-1
-- Update to 1.60.0.
-
-* Fri Mar 25 2022 Josh Stone <jistone@redhat.com> - 1.59.0-4
-- Fix the archive index for wasm32-wasi's libc.a
-
-* Fri Mar 04 2022 Stephen Gallagher <sgallagh@redhat.com> - 1.59.0-3
-- Rebuild against the bootstrapped build
-
-* Fri Mar 04 2022 Stephen Gallagher <sgallagh@redhat.com> - 1.59.0-2.1
-- Bootstrapping for Fedora ELN
-
-* Tue Mar 01 2022 Josh Stone <jistone@redhat.com> - 1.59.0-2
-- Fix s390x hangs, rhbz#2058803
-
-* Thu Feb 24 2022 Josh Stone <jistone@redhat.com> - 1.59.0-1
-- Update to 1.59.0.
-- Revert to libgit2 1.3.x
-
-* Sun Feb 20 2022 Igor Raits <igor.raits@gmail.com> - 1.58.1-2
-- Rebuild for libgit2 1.4.x
-
-* Thu Jan 20 2022 Josh Stone <jistone@redhat.com> - 1.58.1-1
-- Update to 1.58.1.
-
-* Thu Jan 13 2022 Josh Stone <jistone@redhat.com> - 1.58.0-1
-- Update to 1.58.0.
-
-* Wed Jan 05 2022 Josh Stone <jistone@redhat.com> - 1.57.0-2
-- Add rust-std-static-i686-pc-windows-gnu
-- Add rust-std-static-x86_64-pc-windows-gnu
-
-* Thu Dec 02 2021 Josh Stone <jistone@redhat.com> - 1.57.0-1
-- Update to 1.57.0, fixes rhbz#2028675.
-- Backport rust#91070, fixes rhbz#1990657
-- Add rust-std-static-wasm32-wasi
-
-* Sun Nov 28 2021 Igor Raits <ignatenkobrain@fedoraproject.org> - 1.56.1-3
-- De-bootstrap (libgit2)
-
-* Sun Nov 28 2021 Igor Raits <ignatenkobrain@fedoraproject.org> - 1.56.1-2
-- Rebuild for libgit2 1.3.x
-
-* Mon Nov 01 2021 Josh Stone <jistone@redhat.com> - 1.56.1-1
-- Update to 1.56.1.
-
-* Thu Oct 21 2021 Josh Stone <jistone@redhat.com> - 1.56.0-1
-- Update to 1.56.0.
-
-* Tue Sep 14 2021 Sahana Prasad <sahana@redhat.com> - 1.55.0-2
-- Rebuilt with OpenSSL 3.0.0
-
-* Thu Sep 09 2021 Josh Stone <jistone@redhat.com> - 1.55.0-1
-- Update to 1.55.0.
-- Use llvm-ranlib for wasm rlibs; Fixes rhbz#2002612
-
-* Tue Aug 24 2021 Josh Stone <jistone@redhat.com> - 1.54.0-2
-- Build with LLVM 12 on Fedora 35+
-
-* Thu Jul 29 2021 Josh Stone <jistone@redhat.com> - 1.54.0-1
-- Update to 1.54.0.
-
-* Fri Jul 23 2021 Fedora Release Engineering <releng@fedoraproject.org> - 1.53.0-3
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_35_Mass_Rebuild
-
-* Thu Jul 08 2021 Josh Stone <jistone@redhat.com> - 1.53.0-2
-- Exclude wasm on s390x for lack of lld
-
-* Thu Jun 17 2021 Josh Stone <jistone@redhat.com> - 1.53.0-1
-- Update to 1.53.0.
-
-* Wed Jun 02 2021 Josh Stone <jistone@redhat.com> - 1.52.1-2
-- Set rust.codegen-units-std=1 for all targets again.
-- Add rust-std-static-wasm32-unknown-unknown.
-- Rebuild f34 with LLVM 12.
-
-* Mon May 10 2021 Josh Stone <jistone@redhat.com> - 1.52.1-1
-- Update to 1.52.1.
-
-* Thu May 06 2021 Josh Stone <jistone@redhat.com> - 1.52.0-1
-- Update to 1.52.0.
-
-* Fri Apr 16 2021 Josh Stone <jistone@redhat.com> - 1.51.0-3
-- Security fixes for CVE-2020-36323, CVE-2021-31162
-
-* Wed Apr 14 2021 Josh Stone <jistone@redhat.com> - 1.51.0-2
-- Security fixes for CVE-2021-28876, CVE-2021-28878, CVE-2021-28879
-- Fix bootstrap for stage0 rust 1.51
-
-* Thu Mar 25 2021 Josh Stone <jistone@redhat.com> - 1.51.0-1
-- Update to 1.51.0.
-
-* Thu Feb 11 2021 Josh Stone <jistone@redhat.com> - 1.50.0-1
-- Update to 1.50.0.
-
-* Wed Jan 27 2021 Fedora Release Engineering <releng@fedoraproject.org> - 1.49.0-2
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_34_Mass_Rebuild
-
-* Tue Jan 05 2021 Josh Stone <jistone@redhat.com> - 1.49.0-1
-- Update to 1.49.0.
-
-* Tue Dec 29 2020 Igor Raits <ignatenkobrain@fedoraproject.org> - 1.48.0-3
-- De-bootstrap
-
-* Mon Dec 28 2020 Igor Raits <ignatenkobrain@fedoraproject.org> - 1.48.0-2
-- Rebuild for libgit2 1.1.x
-
-* Thu Nov 19 2020 Josh Stone <jistone@redhat.com> - 1.48.0-1
-- Update to 1.48.0.
-
-* Sat Oct 10 2020 Jeff Law <law@redhat.com> - 1.47.0-2
-- Re-enable LTO
-
-* Thu Oct 08 2020 Josh Stone <jistone@redhat.com> - 1.47.0-1
-- Update to 1.47.0.
-
-* Fri Aug 28 2020 Fabio Valentini <decathorpe@gmail.com> - 1.46.0-2
-- Fix LTO with doctests (backported cargo PR#8657).
-
-* Thu Aug 27 2020 Josh Stone <jistone@redhat.com> - 1.46.0-1
-- Update to 1.46.0.
-
-* Mon Aug 03 2020 Josh Stone <jistone@redhat.com> - 1.45.2-1
-- Update to 1.45.2.
-
-* Thu Jul 30 2020 Josh Stone <jistone@redhat.com> - 1.45.1-1
-- Update to 1.45.1.
-
-* Wed Jul 29 2020 Fedora Release Engineering <releng@fedoraproject.org> - 1.45.0-2
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_33_Mass_Rebuild
-
-* Thu Jul 16 2020 Josh Stone <jistone@redhat.com> - 1.45.0-1
-- Update to 1.45.0.
-
-* Wed Jul 01 2020 Jeff Law <law@redhat.com> - 1.44.1-2
-- Disable LTO
-
-* Thu Jun 18 2020 Josh Stone <jistone@redhat.com> - 1.44.1-1
-- Update to 1.44.1.
-
-* Thu Jun 04 2020 Josh Stone <jistone@redhat.com> - 1.44.0-1
-- Update to 1.44.0.
-
-* Thu May 07 2020 Josh Stone <jistone@redhat.com> - 1.43.1-1
-- Update to 1.43.1.
-
-* Thu Apr 23 2020 Josh Stone <jistone@redhat.com> - 1.43.0-1
-- Update to 1.43.0.
-
-* Thu Mar 12 2020 Josh Stone <jistone@redhat.com> - 1.42.0-1
-- Update to 1.42.0.
-
-* Thu Feb 27 2020 Josh Stone <jistone@redhat.com> - 1.41.1-1
-- Update to 1.41.1.
-
-* Thu Feb 20 2020 Josh Stone <jistone@redhat.com> - 1.41.0-2
-- Rebuild with llvm9.0
-
-* Thu Jan 30 2020 Josh Stone <jistone@redhat.com> - 1.41.0-1
-- Update to 1.41.0.
-
-* Thu Jan 16 2020 Josh Stone <jistone@redhat.com> - 1.40.0-3
-- Build compiletest with in-tree libtest
-
-* Tue Jan 07 2020 Josh Stone <jistone@redhat.com> - 1.40.0-2
-- Fix compiletest with newer (local-rebuild) libtest
-- Fix ARM EHABI unwinding
-
-* Thu Dec 19 2019 Josh Stone <jistone@redhat.com> - 1.40.0-1
-- Update to 1.40.0.
-
-* Tue Nov 12 2019 Josh Stone <jistone@redhat.com> - 1.39.0-2
-- Fix a couple build and test issues with rustdoc.
-
-* Thu Nov 07 2019 Josh Stone <jistone@redhat.com> - 1.39.0-1
-- Update to 1.39.0.
-
-* Fri Sep 27 2019 Josh Stone <jistone@redhat.com> - 1.38.0-2
-- Filter the libraries included in rust-std (rhbz1756487)
-
-* Thu Sep 26 2019 Josh Stone <jistone@redhat.com> - 1.38.0-1
-- Update to 1.38.0.
-
-* Thu Aug 15 2019 Josh Stone <jistone@redhat.com> - 1.37.0-1
-- Update to 1.37.0.
-
-* Fri Jul 26 2019 Fedora Release Engineering <releng@fedoraproject.org> - 1.36.0-2
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_31_Mass_Rebuild
-
-* Thu Jul 04 2019 Josh Stone <jistone@redhat.com> - 1.36.0-1
-- Update to 1.36.0.
-
-* Wed May 29 2019 Josh Stone <jistone@redhat.com> - 1.35.0-2
-- Fix compiletest for rebuild testing.
-
-* Thu May 23 2019 Josh Stone <jistone@redhat.com> - 1.35.0-1
-- Update to 1.35.0.
-
-* Tue May 14 2019 Josh Stone <jistone@redhat.com> - 1.34.2-1
-- Update to 1.34.2 -- fixes CVE-2019-12083.
-
-* Tue Apr 30 2019 Josh Stone <jistone@redhat.com> - 1.34.1-3
-- Set rust.codegen-units-std=1
-
-* Fri Apr 26 2019 Josh Stone <jistone@redhat.com> - 1.34.1-2
-- Remove the ThinLTO workaround.
-
-* Thu Apr 25 2019 Josh Stone <jistone@redhat.com> - 1.34.1-1
-- Update to 1.34.1.
-- Add a ThinLTO fix for rhbz1701339.
-
-* Thu Apr 11 2019 Josh Stone <jistone@redhat.com> - 1.34.0-1
-- Update to 1.34.0.
-
-* Fri Mar 01 2019 Josh Stone <jistone@redhat.com> - 1.33.0-2
-- Fix deprecations for self-rebuild
-
-* Thu Feb 28 2019 Josh Stone <jistone@redhat.com> - 1.33.0-1
-- Update to 1.33.0.
-
-* Sat Feb 02 2019 Fedora Release Engineering <releng@fedoraproject.org> - 1.32.0-2
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_30_Mass_Rebuild
-
-* Thu Jan 17 2019 Josh Stone <jistone@redhat.com> - 1.32.0-1
-- Update to 1.32.0.
-
-* Mon Jan 07 2019 Josh Stone <jistone@redhat.com> - 1.31.1-9
-- Update to 1.31.1 for RLS fixes.
-
-* Thu Dec 06 2018 Josh Stone <jistone@redhat.com> - 1.31.0-8
-- Update to 1.31.0 -- Rust 2018!
-- clippy/rls/rustfmt are no longer -preview
-
-* Thu Nov 08 2018 Josh Stone <jistone@redhat.com> - 1.30.1-7
-- Update to 1.30.1.
-
-* Thu Oct 25 2018 Josh Stone <jistone@redhat.com> - 1.30.0-6
-- Update to 1.30.0.
-
-* Mon Oct 22 2018 Josh Stone <jistone@redhat.com> - 1.29.2-5
-- Rebuild without bootstrap binaries.
-
-* Sat Oct 20 2018 Josh Stone <jistone@redhat.com> - 1.29.2-4
-- Re-bootstrap armv7hl due to rhbz#1639485
-
-* Fri Oct 12 2018 Josh Stone <jistone@redhat.com> - 1.29.2-3
-- Update to 1.29.2.
-
-* Tue Sep 25 2018 Josh Stone <jistone@redhat.com> - 1.29.1-2
-- Update to 1.29.1.
-- Security fix for str::repeat (pending CVE).
-
-* Thu Sep 13 2018 Josh Stone <jistone@redhat.com> - 1.29.0-1
-- Update to 1.29.0.
-- Add a clippy-preview subpackage
-
-* Mon Aug 13 2018 Josh Stone <jistone@redhat.com> - 1.28.0-3
-- Use llvm6.0 instead of llvm-7 for now
-
-* Tue Aug 07 2018 Josh Stone <jistone@redhat.com> - 1.28.0-2
-- Rebuild for LLVM ppc64/s390x fixes
-
-* Thu Aug 02 2018 Josh Stone <jistone@redhat.com> - 1.28.0-1
-- Update to 1.28.0.
-
-* Tue Jul 24 2018 Josh Stone <jistone@redhat.com> - 1.27.2-4
-- Update to 1.27.2.
-
-* Sat Jul 14 2018 Fedora Release Engineering <releng@fedoraproject.org> - 1.27.1-3
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_29_Mass_Rebuild
-
-* Tue Jul 10 2018 Josh Stone <jistone@redhat.com> - 1.27.1-2
-- Update to 1.27.1.
-- Security fix for CVE-2018-1000622
-
-* Thu Jun 21 2018 Josh Stone <jistone@redhat.com> - 1.27.0-1
-- Update to 1.27.0.
-
-* Tue Jun 05 2018 Josh Stone <jistone@redhat.com> - 1.26.2-4
-- Rebuild without bootstrap binaries.
-
-* Tue Jun 05 2018 Josh Stone <jistone@redhat.com> - 1.26.2-3
-- Update to 1.26.2.
-- Re-bootstrap to deal with LLVM symbol changes.
-
-* Tue May 29 2018 Josh Stone <jistone@redhat.com> - 1.26.1-2
-- Update to 1.26.1.
-
-* Thu May 10 2018 Josh Stone <jistone@redhat.com> - 1.26.0-1
-- Update to 1.26.0.
-
-* Mon Apr 16 2018 Dan Callaghan <dcallagh@redhat.com> - 1.25.0-3
-- Add cargo, rls, and analysis
-
-* Tue Apr 10 2018 Josh Stone <jistone@redhat.com> - 1.25.0-2
-- Filter codegen-backends from Provides too.
-
-* Thu Mar 29 2018 Josh Stone <jistone@redhat.com> - 1.25.0-1
-- Update to 1.25.0.
-
-* Thu Mar 01 2018 Josh Stone <jistone@redhat.com> - 1.24.1-1
-- Update to 1.24.1.
-
-* Wed Feb 21 2018 Josh Stone <jistone@redhat.com> - 1.24.0-3
-- Backport a rebuild fix for rust#48308.
-
-* Mon Feb 19 2018 Josh Stone <jistone@redhat.com> - 1.24.0-2
-- rhbz1546541: drop full-bootstrap; cmp libs before symlinking.
-- Backport pr46592 to fix local_rebuild bootstrapping.
-- Backport pr48362 to fix relative/absolute libdir.
-
-* Thu Feb 15 2018 Josh Stone <jistone@redhat.com> - 1.24.0-1
-- Update to 1.24.0.
-
-* Mon Feb 12 2018 Iryna Shcherbina <ishcherb@redhat.com> - 1.23.0-4
-- Update Python 2 dependency declarations to new packaging standards
-  (See https://fedoraproject.org/wiki/FinalizingFedoraSwitchtoPython3)
-
-* Tue Feb 06 2018 Josh Stone <jistone@redhat.com> - 1.23.0-3
-- Use full-bootstrap to work around a rebuild issue.
-- Patch binaryen for GCC 8
-
-* Thu Feb 01 2018 Igor Gnatenko <ignatenkobrain@fedoraproject.org> - 1.23.0-2
-- Switch to %%ldconfig_scriptlets
-
-* Mon Jan 08 2018 Josh Stone <jistone@redhat.com> - 1.23.0-1
-- Update to 1.23.0.
-
-* Thu Nov 23 2017 Josh Stone <jistone@redhat.com> - 1.22.1-1
-- Update to 1.22.1.
-
-* Thu Oct 12 2017 Josh Stone <jistone@redhat.com> - 1.21.0-1
-- Update to 1.21.0.
-
-* Mon Sep 11 2017 Josh Stone <jistone@redhat.com> - 1.20.0-2
-- ABI fixes for ppc64 and s390x.
-
-* Thu Aug 31 2017 Josh Stone <jistone@redhat.com> - 1.20.0-1
-- Update to 1.20.0.
-- Add a rust-src subpackage.
-
-* Thu Aug 03 2017 Fedora Release Engineering <releng@fedoraproject.org> - 1.19.0-4
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_27_Binutils_Mass_Rebuild
-
-* Thu Jul 27 2017 Fedora Release Engineering <releng@fedoraproject.org> - 1.19.0-3
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_27_Mass_Rebuild
-
-* Mon Jul 24 2017 Josh Stone <jistone@redhat.com> - 1.19.0-2
-- Use find-debuginfo.sh --keep-section .rustc
-
-* Thu Jul 20 2017 Josh Stone <jistone@redhat.com> - 1.19.0-1
-- Update to 1.19.0.
-
-* Thu Jun 08 2017 Josh Stone <jistone@redhat.com> - 1.18.0-1
-- Update to 1.18.0.
-
-* Mon May 08 2017 Josh Stone <jistone@redhat.com> - 1.17.0-2
-- Move shared libraries back to libdir and symlink in rustlib
-
-* Thu Apr 27 2017 Josh Stone <jistone@redhat.com> - 1.17.0-1
-- Update to 1.17.0.
-
-* Mon Mar 20 2017 Josh Stone <jistone@redhat.com> - 1.16.0-3
-- Make rust-lldb arch-specific to deal with lldb deps
-
-* Fri Mar 17 2017 Josh Stone <jistone@redhat.com> - 1.16.0-2
-- Limit rust-lldb arches
-
-* Thu Mar 16 2017 Josh Stone <jistone@redhat.com> - 1.16.0-1
-- Update to 1.16.0.
-- Use rustbuild instead of the old makefiles.
-- Update bootstrapping to include rust-std and cargo.
-- Add a rust-lldb subpackage.
-
-* Thu Feb 09 2017 Josh Stone <jistone@redhat.com> - 1.15.1-1
-- Update to 1.15.1.
-- Require rust-rpm-macros for new crate packaging.
-- Keep shared libraries under rustlib/, only debug-stripped.
-- Merge and clean up conditionals for epel7.
-
-* Fri Dec 23 2016 Josh Stone <jistone@redhat.com> - 1.14.0-2
-- Rebuild without bootstrap binaries.
-
-* Thu Dec 22 2016 Josh Stone <jistone@redhat.com> - 1.14.0-1
-- Update to 1.14.0.
-- Rewrite bootstrap logic to target specific arches.
-- Bootstrap ppc64, ppc64le, s390x. (thanks to Sinny Kumari for testing!)
-
-* Thu Nov 10 2016 Josh Stone <jistone@redhat.com> - 1.13.0-1
-- Update to 1.13.0.
-- Use hardening flags for linking.
-- Split the standard library into its own package
-- Centralize rustlib/ under /usr/lib/ for multilib integration.
-
-* Thu Oct 20 2016 Josh Stone <jistone@redhat.com> - 1.12.1-1
-- Update to 1.12.1.
-
-* Fri Oct 14 2016 Josh Stone <jistone@redhat.com> - 1.12.0-7
-- Rebuild with LLVM 3.9.
-- Add ncurses-devel for llvm-config's -ltinfo.
-
-* Thu Oct 13 2016 Josh Stone <jistone@redhat.com> - 1.12.0-6
-- Rebuild with llvm-static, preparing for 3.9
-
-* Fri Oct 07 2016 Josh Stone <jistone@redhat.com> - 1.12.0-5
-- Rebuild with fixed eu-strip (rhbz1380961)
-
-* Fri Oct 07 2016 Josh Stone <jistone@redhat.com> - 1.12.0-4
-- Rebuild without bootstrap binaries.
-
-* Thu Oct 06 2016 Josh Stone <jistone@redhat.com> - 1.12.0-3
-- Bootstrap aarch64.
-- Use jemalloc's MALLOC_CONF to work around #36944.
-- Apply pr36933 to really disable armv7hl NEON.
-
-* Sat Oct 01 2016 Josh Stone <jistone@redhat.com> - 1.12.0-2
-- Protect .rustc from rpm stripping.
-
-* Fri Sep 30 2016 Josh Stone <jistone@redhat.com> - 1.12.0-1
-- Update to 1.12.0.
-- Always use --local-rust-root, even for bootstrap binaries.
-- Remove the rebuild conditional - the build system now figures it out.
-- Let minidebuginfo do its thing, since metadata is no longer a note.
-- Let rust build its own compiler-rt builtins again.
-
-* Sat Sep 03 2016 Josh Stone <jistone@redhat.com> - 1.11.0-3
-- Rebuild without bootstrap binaries.
-
-* Fri Sep 02 2016 Josh Stone <jistone@redhat.com> - 1.11.0-2
-- Bootstrap armv7hl, with backported no-neon patch.
-
-* Wed Aug 24 2016 Josh Stone <jistone@redhat.com> - 1.11.0-1
-- Update to 1.11.0.
-- Drop the backported patches.
-- Patch get-stage0.py to trust existing bootstrap binaries.
-- Use libclang_rt.builtins from compiler-rt, dodging llvm-static issues.
-- Use --local-rust-root to make sure the right bootstrap is used.
-
-* Sat Aug 13 2016 Josh Stone <jistone@redhat.com> 1.10.0-4
-- Rebuild without bootstrap binaries.
-
-* Fri Aug 12 2016 Josh Stone <jistone@redhat.com> - 1.10.0-3
-- Initial import into Fedora (#1356907), bootstrapped
-- Format license text as suggested in review.
-- Note how the tests already run in parallel.
-- Undefine _include_minidebuginfo, because it duplicates ".note.rustc".
-- Don't let checks fail the whole build.
-- Note that -doc can't be noarch, as rpmdiff doesn't allow variations.
-
-* Tue Jul 26 2016 Josh Stone <jistone@redhat.com> - 1.10.0-2
-- Update -doc directory ownership, and mark its licenses.
-- Package and declare licenses for libbacktrace and hoedown.
-- Set bootstrap_base as a global.
-- Explicitly require python2.
-
-* Thu Jul 14 2016 Josh Stone <jistone@fedoraproject.org> - 1.10.0-1
-- Initial package, bootstrapped
+%autochangelog
