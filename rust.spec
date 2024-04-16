@@ -557,11 +557,15 @@ useful as a reference for code completion tools in various editors.
 
 %if 0%{?rhel}
 
-%package srpm-macros
+%package toolset-srpm-macros
 Summary:        RPM macros for building Rust source packages
 BuildArch:      noarch
 
-%description srpm-macros
+# This used to be from its own source package, versioned like rust2rpm.
+Obsoletes:      rust-srpm-macros < 18~
+Provides:       rust-srpm-macros = 25.2
+
+%description toolset-srpm-macros
 RPM macros for building source packages for Rust projects.
 
 
@@ -1083,7 +1087,7 @@ rm -rf "./build/%{rust_triple}/stage2-tools/%{rust_triple}/cit/"
 
 
 %if 0%{?rhel}
-%files srpm-macros
+%files toolset-srpm-macros
 %{rpmmacrodir}/macros.rust-srpm
 
 %files toolset
