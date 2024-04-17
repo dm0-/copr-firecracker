@@ -149,6 +149,18 @@ Patch8:         121088.patch
 # https://github.com/rust-lang/rust/pull/123520
 Patch9:         0001-bootstrap-move-all-of-rustc-s-flags-to-rustc_cargo.patch
 
+# https://github.com/rust-lang/rust/pull/123652
+Patch10:        0001-Fix-UI-tests-with-dist-vendored-dependencies.patch
+
+# https://github.com/rust-lang/rust/pull/121179 (partial)
+Patch11:        0001-remove-stderr-per-bitwidth-from-some-tests.patch
+
+# https://github.com/rust-lang/cargo/pull/13744
+Patch12:        0001-test-don-t-compress-test-registry-crates.patch
+
+# https://github.com/rust-lang/rust-clippy/pull/12682
+Patch13:        0001-The-multiple_unsafe_ops_per_block-test-needs-asm.patch
+
 ### RHEL-specific patches below ###
 
 # Simple rpm macros for rust-toolset (as opposed to full rust-packaging)
@@ -614,6 +626,10 @@ rm -rf %{wasi_libc_dir}/dlmalloc/
 %patch -P7 -p1
 %patch -P8 -p1
 %patch -P9 -p1
+%patch -P10 -p1
+%patch -P11 -p1
+%patch -P12 -p1 -d src/tools/cargo
+%patch -P13 -p1 -d src/tools/clippy
 
 %if %with disabled_libssh2
 %patch -P100 -p1

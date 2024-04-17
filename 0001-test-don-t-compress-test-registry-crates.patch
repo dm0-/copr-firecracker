@@ -1,0 +1,185 @@
+From ed8e223cc58103cae0586351fd9113a727523cab Mon Sep 17 00:00:00 2001
+From: Josh Stone <jistone@redhat.com>
+Date: Thu, 11 Apr 2024 14:58:42 -0700
+Subject: [PATCH] test: don't compress test registry crates
+
+They are still nominally gzipped, but using `Compression::none()` makes
+them consistent even across zlib and zlib-ng, and this fixes checksum
+differences in the testsuite. There is a one-time update of all those
+checksums to catch up with this change though.
+
+(cherry picked from commit a70f23c50b61c1a3335f2943375a04ae7abf2fa4)
+---
+ crates/cargo-test-support/src/registry.rs        |  2 +-
+ tests/testsuite/alt_registry.rs                  |  2 +-
+ .../cargo_add/locked_unchanged/in/Cargo.lock     |  2 +-
+ .../cargo_add/lockfile_updated/in/Cargo.lock     |  2 +-
+ .../cargo_add/lockfile_updated/out/Cargo.lock    |  4 ++--
+ .../cargo_remove/update_lock_file/in/Cargo.lock  | 16 ++++++++--------
+ .../cargo_remove/update_lock_file/out/Cargo.lock | 12 ++++++------
+ 7 files changed, 20 insertions(+), 20 deletions(-)
+
+diff --git a/crates/cargo-test-support/src/registry.rs b/crates/cargo-test-support/src/registry.rs
+index cc51707dbbf9..e27d1e354d7b 100644
+--- a/crates/cargo-test-support/src/registry.rs
++++ b/crates/cargo-test-support/src/registry.rs
+@@ -1469,7 +1469,7 @@ impl Package {
+         let dst = self.archive_dst();
+         t!(fs::create_dir_all(dst.parent().unwrap()));
+         let f = t!(File::create(&dst));
+-        let mut a = Builder::new(GzEncoder::new(f, Compression::default()));
++        let mut a = Builder::new(GzEncoder::new(f, Compression::none()));
+ 
+         if !self
+             .files
+diff --git a/tests/testsuite/alt_registry.rs b/tests/testsuite/alt_registry.rs
+index f286dc018122..42b818493244 100644
+--- a/tests/testsuite/alt_registry.rs
++++ b/tests/testsuite/alt_registry.rs
+@@ -1466,7 +1466,7 @@ dependencies = [
+ name = "foo"
+ version = "0.1.0"
+ source = "sparse+http://[..]/"
+-checksum = "f6a200a9339fef960979d94d5c99cbbfd899b6f5a396a55d9775089119050203""#,
++checksum = "458c1addb23fde7dfbca0410afdbcc0086f96197281ec304d9e0e10def3cb899""#,
+     );
+ }
+ 
+diff --git a/tests/testsuite/cargo_add/locked_unchanged/in/Cargo.lock b/tests/testsuite/cargo_add/locked_unchanged/in/Cargo.lock
+index 011b335926ee..b88709a9e9be 100644
+--- a/tests/testsuite/cargo_add/locked_unchanged/in/Cargo.lock
++++ b/tests/testsuite/cargo_add/locked_unchanged/in/Cargo.lock
+@@ -13,4 +13,4 @@ dependencies = [
+ name = "my-package"
+ version = "99999.0.0+my-package"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "62c45acf9e11d2f97f5b318143219c0b4102eafef1c22a4b545b47104691d915"
++checksum = "73cfa03cf28feb001362b377a837910c5a6ec1cc5cceaa562b97fc14d15edec8"
+diff --git a/tests/testsuite/cargo_add/lockfile_updated/in/Cargo.lock b/tests/testsuite/cargo_add/lockfile_updated/in/Cargo.lock
+index d9bcc988d3f2..d8fa962f3069 100644
+--- a/tests/testsuite/cargo_add/lockfile_updated/in/Cargo.lock
++++ b/tests/testsuite/cargo_add/lockfile_updated/in/Cargo.lock
+@@ -14,4 +14,4 @@ dependencies = [
+ name = "unrelateed-crate"
+ version = "0.2.0+my-package"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "266de4849a570b5dfda5e8e082a2aff885e9d2d4965dae8f8b6c8535e1ec731f"
++checksum = "b16af1a8ba7e4331ca62d945483a3028c2afbbe06a7f2ffaa0a3538ef0a7d63e"
+diff --git a/tests/testsuite/cargo_add/lockfile_updated/out/Cargo.lock b/tests/testsuite/cargo_add/lockfile_updated/out/Cargo.lock
+index 4b5fb465f104..e423b3d1f8b7 100644
+--- a/tests/testsuite/cargo_add/lockfile_updated/out/Cargo.lock
++++ b/tests/testsuite/cargo_add/lockfile_updated/out/Cargo.lock
+@@ -14,10 +14,10 @@ dependencies = [
+ name = "my-package"
+ version = "99999.0.0+my-package"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "62c45acf9e11d2f97f5b318143219c0b4102eafef1c22a4b545b47104691d915"
++checksum = "73cfa03cf28feb001362b377a837910c5a6ec1cc5cceaa562b97fc14d15edec8"
+ 
+ [[package]]
+ name = "unrelateed-crate"
+ version = "0.2.0+my-package"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "266de4849a570b5dfda5e8e082a2aff885e9d2d4965dae8f8b6c8535e1ec731f"
++checksum = "b16af1a8ba7e4331ca62d945483a3028c2afbbe06a7f2ffaa0a3538ef0a7d63e"
+diff --git a/tests/testsuite/cargo_remove/update_lock_file/in/Cargo.lock b/tests/testsuite/cargo_remove/update_lock_file/in/Cargo.lock
+index 2302220f2fb7..a4018e70eb47 100644
+--- a/tests/testsuite/cargo_remove/update_lock_file/in/Cargo.lock
++++ b/tests/testsuite/cargo_remove/update_lock_file/in/Cargo.lock
+@@ -19,40 +19,40 @@ dependencies = [
+ name = "clippy"
+ version = "0.4.1+my-package"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "47ced0eda54e9ddc6063f0e1d0164493cd16c84c6b6a0329a536967c44e205f7"
++checksum = "e95568c5ce98de9c470c1d9b387466f4d5efa9687d3af7998e7c9c1da5e399fb"
+ 
+ [[package]]
+ name = "docopt"
+ version = "0.6.2+my-package"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "b600540c4fafb27bf6e6961f0f1e6f547c9d6126ce581ab3a92f878c8e2c9a2c"
++checksum = "d4414d2705e6b42fe10772b4ab4e3260f362669e45606eb562dc4c0023e911f6"
+ 
+ [[package]]
+ name = "regex"
+ version = "0.1.1+my-package"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "84949cb53285a6c481d0133065a7b669871acfd9e20f273f4ce1283c309775d5"
++checksum = "bc4552a1d503f3a436bb18d1efff62eb95bd97f724d06466c55ef151ea2de9e0"
+ 
+ [[package]]
+ name = "rustc-serialize"
+-version = "0.4.1+my-package"
++version = "0.4.0+my-package"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "31162e7d23a085553c42dee375787b451a481275473f7779c4a63bcc267a24fd"
++checksum = "48c3645ec42f69a343fbe9734a477ae59448192e779206dbcb1a9c3397563fd8"
+ 
+ [[package]]
+ name = "semver"
+ version = "0.1.1"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "106bee742e3199d9e59f4269e458dfc825c1b4648c483b1c2b7a45cd2610a308"
++checksum = "20070289360e74dcdc28f437b08dda0c0c861c2328d749bb0d6e1a428013af83"
+ 
+ [[package]]
+ name = "serde"
+ version = "1.0.90"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "be7d269f612a60e3c2c4a4a120e2d878a3f3298a5285eda6e95453905a107d9a"
++checksum = "ba76b226746eabf28375d5ad184926bbb9cd727425c8d027ea10f6c508895c6c"
+ 
+ [[package]]
+ name = "toml"
+ version = "0.1.1+my-package"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "a0f6c7804525ce0a968ef270e55a516cf4bdcf1fea0b09d130e0aa34a66745b3"
++checksum = "a9ea5fa6eaed7d7e6d9fb4571bb9d915b577e19bf2a95321ebb70fd3d894ce49"
+diff --git a/tests/testsuite/cargo_remove/update_lock_file/out/Cargo.lock b/tests/testsuite/cargo_remove/update_lock_file/out/Cargo.lock
+index 0946cee47717..af60414ddad2 100644
+--- a/tests/testsuite/cargo_remove/update_lock_file/out/Cargo.lock
++++ b/tests/testsuite/cargo_remove/update_lock_file/out/Cargo.lock
+@@ -18,34 +18,34 @@ dependencies = [
+ name = "clippy"
+ version = "0.4.1+my-package"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "47ced0eda54e9ddc6063f0e1d0164493cd16c84c6b6a0329a536967c44e205f7"
++checksum = "e95568c5ce98de9c470c1d9b387466f4d5efa9687d3af7998e7c9c1da5e399fb"
+ 
+ [[package]]
+ name = "docopt"
+ version = "0.6.2+my-package"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "b600540c4fafb27bf6e6961f0f1e6f547c9d6126ce581ab3a92f878c8e2c9a2c"
++checksum = "d4414d2705e6b42fe10772b4ab4e3260f362669e45606eb562dc4c0023e911f6"
+ 
+ [[package]]
+ name = "regex"
+ version = "0.1.1+my-package"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "84949cb53285a6c481d0133065a7b669871acfd9e20f273f4ce1283c309775d5"
++checksum = "bc4552a1d503f3a436bb18d1efff62eb95bd97f724d06466c55ef151ea2de9e0"
+ 
+ [[package]]
+ name = "semver"
+ version = "0.1.1"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "106bee742e3199d9e59f4269e458dfc825c1b4648c483b1c2b7a45cd2610a308"
++checksum = "20070289360e74dcdc28f437b08dda0c0c861c2328d749bb0d6e1a428013af83"
+ 
+ [[package]]
+ name = "serde"
+ version = "1.0.90"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "be7d269f612a60e3c2c4a4a120e2d878a3f3298a5285eda6e95453905a107d9a"
++checksum = "ba76b226746eabf28375d5ad184926bbb9cd727425c8d027ea10f6c508895c6c"
+ 
+ [[package]]
+ name = "toml"
+ version = "0.1.1+my-package"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "a0f6c7804525ce0a968ef270e55a516cf4bdcf1fea0b09d130e0aa34a66745b3"
++checksum = "a9ea5fa6eaed7d7e6d9fb4571bb9d915b577e19bf2a95321ebb70fd3d894ce49"
+-- 
+2.44.0
+

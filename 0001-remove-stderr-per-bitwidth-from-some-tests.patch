@@ -1,0 +1,82 @@
+From 96e7b2767b30c215361d26626ef235f5ec0e8cd5 Mon Sep 17 00:00:00 2001
+From: Ralf Jung <post@ralfj.de>
+Date: Fri, 16 Feb 2024 10:01:43 +0100
+Subject: [PATCH] remove stderr-per-bitwidth from some tests
+
+(cherry picked from commit f68e79dcac3acb635c58ff2fa4178b9a0b040fe4)
+---
+ ...ut_ref_in_final_dynamic_check.64bit.stderr | 20 -------------------
+ .../mut_ref_in_final_dynamic_check.rs         |  3 ++-
+ ... => mut_ref_in_final_dynamic_check.stderr} |  8 ++++----
+ 3 files changed, 6 insertions(+), 25 deletions(-)
+ delete mode 100644 tests/ui/consts/const-mut-refs/mut_ref_in_final_dynamic_check.64bit.stderr
+ rename tests/ui/consts/const-mut-refs/{mut_ref_in_final_dynamic_check.32bit.stderr => mut_ref_in_final_dynamic_check.stderr} (75%)
+
+diff --git a/tests/ui/consts/const-mut-refs/mut_ref_in_final_dynamic_check.64bit.stderr b/tests/ui/consts/const-mut-refs/mut_ref_in_final_dynamic_check.64bit.stderr
+deleted file mode 100644
+index fc68207512c0..000000000000
+--- a/tests/ui/consts/const-mut-refs/mut_ref_in_final_dynamic_check.64bit.stderr
++++ /dev/null
+@@ -1,20 +0,0 @@
+-error[E0080]: it is undefined behavior to use this value
+-  --> $DIR/mut_ref_in_final_dynamic_check.rs:15:1
+-   |
+-LL | const A: Option<&mut i32> = helper();
+-   | ^^^^^^^^^^^^^^^^^^^^^^^^^ constructing invalid value at .<enum-variant(Some)>.0: encountered mutable reference in a `const` or `static`
+-   |
+-   = note: The rules on what exactly is undefined behavior aren't clear, so this check might be overzealous. Please open an issue on the rustc repository if you believe it should not be considered undefined behavior.
+-   = note: the raw bytes of the constant (size: 8, align: 8) {
+-               2a 00 00 00 00 00 00 00                         │ *.......
+-           }
+-
+-error: encountered dangling pointer in final value of constant
+-  --> $DIR/mut_ref_in_final_dynamic_check.rs:22:1
+-   |
+-LL | const B: Option<&mut i32> = helper2();
+-   | ^^^^^^^^^^^^^^^^^^^^^^^^^
+-
+-error: aborting due to 2 previous errors
+-
+-For more information about this error, try `rustc --explain E0080`.
+diff --git a/tests/ui/consts/const-mut-refs/mut_ref_in_final_dynamic_check.rs b/tests/ui/consts/const-mut-refs/mut_ref_in_final_dynamic_check.rs
+index 455b557b97c4..b98f4d920694 100644
+--- a/tests/ui/consts/const-mut-refs/mut_ref_in_final_dynamic_check.rs
++++ b/tests/ui/consts/const-mut-refs/mut_ref_in_final_dynamic_check.rs
+@@ -1,4 +1,5 @@
+-// stderr-per-bitwidth
++// normalize-stderr-test "(the raw bytes of the constant) \(size: [0-9]*, align: [0-9]*\)" -> "$1 (size: $$SIZE, align: $$ALIGN)"
++// normalize-stderr-test "([0-9a-f][0-9a-f] |╾─*ALLOC[0-9]+(\+[a-z0-9]+)?(<imm>)?─*╼ )+ *│.*" -> "HEX_DUMP"
+ #![feature(const_mut_refs)]
+ #![feature(raw_ref_op)]
+ 
+diff --git a/tests/ui/consts/const-mut-refs/mut_ref_in_final_dynamic_check.32bit.stderr b/tests/ui/consts/const-mut-refs/mut_ref_in_final_dynamic_check.stderr
+similarity index 75%
+rename from tests/ui/consts/const-mut-refs/mut_ref_in_final_dynamic_check.32bit.stderr
+rename to tests/ui/consts/const-mut-refs/mut_ref_in_final_dynamic_check.stderr
+index 87420a037514..bb3c5518680b 100644
+--- a/tests/ui/consts/const-mut-refs/mut_ref_in_final_dynamic_check.32bit.stderr
++++ b/tests/ui/consts/const-mut-refs/mut_ref_in_final_dynamic_check.stderr
+@@ -1,16 +1,16 @@
+ error[E0080]: it is undefined behavior to use this value
+-  --> $DIR/mut_ref_in_final_dynamic_check.rs:15:1
++  --> $DIR/mut_ref_in_final_dynamic_check.rs:16:1
+    |
+ LL | const A: Option<&mut i32> = helper();
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^ constructing invalid value at .<enum-variant(Some)>.0: encountered mutable reference in a `const` or `static`
+    |
+    = note: The rules on what exactly is undefined behavior aren't clear, so this check might be overzealous. Please open an issue on the rustc repository if you believe it should not be considered undefined behavior.
+-   = note: the raw bytes of the constant (size: 4, align: 4) {
+-               2a 00 00 00                                     │ *...
++   = note: the raw bytes of the constant (size: $SIZE, align: $ALIGN) {
++               HEX_DUMP
+            }
+ 
+ error: encountered dangling pointer in final value of constant
+-  --> $DIR/mut_ref_in_final_dynamic_check.rs:22:1
++  --> $DIR/mut_ref_in_final_dynamic_check.rs:23:1
+    |
+ LL | const B: Option<&mut i32> = helper2();
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^
+-- 
+2.44.0
+

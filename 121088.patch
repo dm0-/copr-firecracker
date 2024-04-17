@@ -43,7 +43,7 @@ index 0000000000000..a15060857eccb
 +// compile-flags: --crate-type=lib -C target-cpu=skylake
 +
 +#![feature(avx512_target_feature)]
-+#![feature(stdarch_x86_avx512)]
++#![feature(stdsimd)]
 +
 +use std::arch::x86_64::*;
 +
