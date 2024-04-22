@@ -1,0 +1,11 @@
+summary+: ": rpm-sequoia"
+require+:
+  - rpm-sequoia
+environment+:
+  PKG_TO_BUILD: "rpm-sequoia"
+duration: 20m
+
+adjust+:
+  - when: distro < rhel-10, centos-stream-10
+    enabled: false
+    because: "rpm-sequoia is available only in RHEL >= 10"

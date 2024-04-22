@@ -1,0 +1,11 @@
+summary+: ": ripgrep"
+require+:
+  - ripgrep
+environment+:
+  PKG_TO_BUILD: "ripgrep"
+duration: 15m
+
+adjust+:
+  # ripgrep is not part of RHEL
+  - when: distro != fedora
+    enabled: false
