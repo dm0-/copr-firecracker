@@ -1,0 +1,11 @@
+summary+: ": librsvg2"
+require+:
+  - librsvg2
+environment+:
+  PKG_TO_BUILD: "librsvg2"
+duration: 20m
+
+adjust+:
+  # building librsvg2 in Fedora is very flaky. Do not run it there
+  - when: distro == fedora
+    enabled: false
