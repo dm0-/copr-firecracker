@@ -311,6 +311,13 @@ Requires:       /usr/bin/cc
 # support custom-derive plugins like #[proc_macro_derive(Foo)].
 %global _find_debuginfo_opts --keep-section .rustc
 
+# The standard library rlibs are essentially static archives, but we don't want
+# to strip them because that impairs the debuginfo of all Rust programs.
+# It also had a tendency to break the cross-compiled libraries:
+# - wasm targets lost the archive index, which we were repairing with llvm-ranlib
+# - uefi targets couldn't link builtins like memcpy, possibly due to lost COMDAT flags
+%global __brp_strip_static_archive %{nil}
+
 %if %{without bundled_llvm}
 %if "%{llvm_root}" == "%{_prefix}" || 0%{?scl:1}
 %global llvm_has_filecheck 1
@@ -340,11 +347,6 @@ BuildRequires:  clang
 BuildRequires:  wasi-libc-static
 %endif
 BuildRequires:  lld
-# brp-strip-static-archive breaks the archive index for wasm
-%global __os_install_post \
-%__os_install_post \
-find '%{buildroot}%{rustlibdir}'/wasm*/lib -type f -regex '.*\\.\\(a\\|rlib\\)' -print -exec '%{llvm_root}/bin/llvm-ranlib' '{}' ';' \
-%{nil}
 %endif
 
 # For profiler_builtins
@@ -886,9 +888,6 @@ find %{buildroot}%{rustlibdir} -type f -name '*.orig' -exec rm -v '{}' '+'
 # https://fedoraproject.org/wiki/Changes/Make_ambiguous_python_shebangs_error
 # We don't actually need to ship any of those python scripts in rust-src anyway.
 find %{buildroot}%{rustlibdir}/src -type f -name '*.py' -exec rm -v '{}' '+'
-
-# FIXME: __os_install_post will strip the rlibs
-# -- should we find a way to preserve debuginfo?
 
 # Remove unwanted documentation files (we already package them)
 rm -f %{buildroot}%{_docdir}/%{name}/README.md
