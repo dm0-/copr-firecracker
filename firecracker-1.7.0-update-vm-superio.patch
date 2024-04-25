@@ -1,0 +1,14 @@
+Update vm-superio to match the version packaged in Fedora, which uses a newer
+version of vmm-sys-util that fixes CVE-2023-50711.
+
+--- a/src/vmm/Cargo.toml
++++ b/src/vmm/Cargo.toml
+@@ -28,7 +28,7 @@
+ userfaultfd = "0.8.1"
+ vhost = { version = "0.10.0", features = ["vhost-user-frontend"] }
+ vm-allocator = "0.1.0"
+-vm-superio = "0.7.0"
++vm-superio = "0.8.0"
+ vm-memory = { version = "0.14.0", features = ["backend-mmap", "backend-bitmap"] }
+ log = { version = "0.4.17", features = ["std", "serde"] }
+ aes-gcm =  { version = "0.10.1", default-features = false, features = ["aes"] }
