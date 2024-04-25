@@ -12,7 +12,7 @@
 
 Name:           firecracker
 Version:        1.7.0
-Release:        1%{?dist}
+Release:        2%{?dist}
 
 Summary:        Secure and fast microVMs for serverless computing
 SourceLicense:  Apache-2.0
@@ -34,13 +34,13 @@ Patch:          %{name}-1.7.0-remove-criterion.patch
 Patch:          %{name}-1.7.0-remove-device_tree.patch
 Patch:          %{name}-1.7.0-update-userfaultfd.patch
 Patch:          %{name}-1.7.0-update-vm-memory.patch
+Patch:          %{name}-1.7.0-update-vm-superio.patch
 
 BuildRequires:  cargo-rpm-macros >= 24
 %if %{defined cargo_target}
 BuildRequires:  rust-std-static-%{cargo_target}
 %endif
 
-# Currently only these architectures are supported.  See the README.
 ExclusiveArch:  aarch64 x86_64
 
 %description
@@ -106,6 +106,9 @@ done
 
 
 %changelog
+* Thu Apr 25 2024 David Michael <fedora.dm0@gmail.com> - 1.7.0-2
+- Sync vm-superio with the upstream version fixing the vmm-sys-util CVE.
+
 * Mon Mar 18 2024 David Michael <fedora.dm0@gmail.com> - 1.7.0-1
 - Update to the 1.7.0 release.
 
