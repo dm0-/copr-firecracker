@@ -40,7 +40,7 @@ ExclusiveArch:  %{rust_arches}
 %endif
 %endif
 %ifarch aarch64
-%global extra_targets aarch64-unknown-none-softfloat
+%global extra_targets aarch64-unknown-none-softfloat aarch64-unknown-uefi
 %endif
 %global all_targets %{?mingw_targets} %{?wasm_targets} %{?extra_targets}
 %define target_enabled() %{lua:
@@ -447,6 +447,12 @@ BuildArch:      noarch
 %target_package x86_64-unknown-none
 Requires:       lld
 %target_description x86_64-unknown-none embedded
+%endif
+
+%if %target_enabled aarch64-unknown-uefi
+%target_package aarch64-unknown-uefi
+Requires:       lld
+%target_description aarch64-unknown-uefi embedded
 %endif
 
 %if %target_enabled x86_64-unknown-uefi
@@ -1071,6 +1077,10 @@ rm -rf "./build/%{rust_triple}/stage2-tools/%{rust_triple}/cit/"
 
 %if %target_enabled x86_64-unknown-none
 %target_files x86_64-unknown-none
+%endif
+
+%if %target_enabled aarch64-unknown-uefi
+%target_files aarch64-unknown-uefi
 %endif
 
 %if %target_enabled x86_64-unknown-uefi
