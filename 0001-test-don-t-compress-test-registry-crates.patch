@@ -1,4 +1,4 @@
-From ed8e223cc58103cae0586351fd9113a727523cab Mon Sep 17 00:00:00 2001
+From a70f23c50b61c1a3335f2943375a04ae7abf2fa4 Mon Sep 17 00:00:00 2001
 From: Josh Stone <jistone@redhat.com>
 Date: Thu, 11 Apr 2024 14:58:42 -0700
 Subject: [PATCH] test: don't compress test registry crates
@@ -7,8 +7,6 @@ They are still nominally gzipped, but using `Compression::none()` makes
 them consistent even across zlib and zlib-ng, and this fixes checksum
 differences in the testsuite. There is a one-time update of all those
 checksums to catch up with this change though.
-
-(cherry picked from commit a70f23c50b61c1a3335f2943375a04ae7abf2fa4)
 ---
  crates/cargo-test-support/src/registry.rs        |  2 +-
  tests/testsuite/alt_registry.rs                  |  2 +-
@@ -20,7 +18,7 @@ checksums to catch up with this change though.
  7 files changed, 20 insertions(+), 20 deletions(-)
 
 diff --git a/crates/cargo-test-support/src/registry.rs b/crates/cargo-test-support/src/registry.rs
-index cc51707dbbf9..e27d1e354d7b 100644
+index e65baeab17d7..f8b4b1447822 100644
 --- a/crates/cargo-test-support/src/registry.rs
 +++ b/crates/cargo-test-support/src/registry.rs
 @@ -1469,7 +1469,7 @@ impl Package {
@@ -33,10 +31,10 @@ index cc51707dbbf9..e27d1e354d7b 100644
          if !self
              .files
 diff --git a/tests/testsuite/alt_registry.rs b/tests/testsuite/alt_registry.rs
-index f286dc018122..42b818493244 100644
+index e122199baa41..fb88105374a2 100644
 --- a/tests/testsuite/alt_registry.rs
 +++ b/tests/testsuite/alt_registry.rs
-@@ -1466,7 +1466,7 @@ dependencies = [
+@@ -1493,7 +1493,7 @@ dependencies = [
  name = "foo"
  version = "0.1.0"
  source = "sparse+http://[..]/"
