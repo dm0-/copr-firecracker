@@ -1,0 +1,59 @@
+From 6dda4e006b0d6d7519ac4a9f540566c81e406a8b Mon Sep 17 00:00:00 2001
+From: Josh Stone <jistone@redhat.com>
+Date: Mon, 22 Apr 2024 16:19:17 -0700
+Subject: [PATCH] Fix 2 tests for offline execution
+
+In `alt_registry::warn_for_unused_fields`, the second part of the test
+runs on `--registry crates-io`, so it needs a local replacement url.
+
+In `install::install_global_cargo_config`, it was adding to the "config"
+file, but the `pkg` before it configured the dummy registry replacement
+in "config.toml". So that replacement wasn't actually used, and if you
+ran tests online it was trying to install `bar v0.1.1` from the real
+registry! The filename is now fixed, and the test double-checks that
+we're only trying to install the local `bar v0.0.1`.
+---
+ tests/testsuite/alt_registry.rs | 4 ++++
+ tests/testsuite/install.rs      | 3 ++-
+ 2 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/tests/testsuite/alt_registry.rs b/tests/testsuite/alt_registry.rs
+index e95f2cbaabbd..1fef04e3ae42 100644
+--- a/tests/testsuite/alt_registry.rs
++++ b/tests/testsuite/alt_registry.rs
+@@ -1572,7 +1572,11 @@ or use environment variable CARGO_REGISTRIES_ALTERNATIVE_TOKEN",
+         )
+         .run();
+ 
++    let crates_io = registry::RegistryBuilder::new()
++        .no_configure_token()
++        .build();
+     p.cargo("publish --registry crates-io")
++        .replace_crates_io(crates_io.index_url())
+         .with_status(101)
+         .with_stderr(
+             "\
+diff --git a/tests/testsuite/install.rs b/tests/testsuite/install.rs
+index 89d40ada9543..ef3f4f3ae604 100644
+--- a/tests/testsuite/install.rs
++++ b/tests/testsuite/install.rs
+@@ -1981,7 +1981,7 @@ fn install_ignores_unstable_table_in_local_cargo_config() {
+ fn install_global_cargo_config() {
+     pkg("bar", "0.0.1");
+ 
+-    let config = cargo_home().join("config");
++    let config = cargo_home().join("config.toml");
+     let mut toml = fs::read_to_string(&config).unwrap_or_default();
+ 
+     toml.push_str(
+@@ -1994,6 +1994,7 @@ fn install_global_cargo_config() {
+ 
+     cargo_process("install bar")
+         .with_status(101)
++        .with_stderr_contains("[INSTALLING] bar v0.0.1")
+         .with_stderr_contains("[..]--target nonexistent[..]")
+         .run();
+ }
+-- 
+2.44.0
+
