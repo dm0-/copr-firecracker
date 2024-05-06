@@ -1,5 +1,5 @@
 Name:           rust
-Version:        1.78.0
+Version:        1.79.0
 Release:        %autorelease
 Summary:        The Rust Programming Language
 License:        (Apache-2.0 OR MIT) AND (Artistic-2.0 AND BSD-3-Clause AND ISC AND MIT AND MPL-2.0 AND Unicode-DFS-2016)
@@ -14,9 +14,9 @@ ExclusiveArch:  %{rust_arches}
 # To bootstrap from scratch, set the channel and date from src/stage0.json
 # e.g. 1.59.0 wants rustc: 1.58.0-2022-01-13
 # or nightly wants some beta-YYYY-MM-DD
-%global bootstrap_version 1.77.0
-%global bootstrap_channel 1.77.0
-%global bootstrap_date 2024-03-21
+%global bootstrap_version 1.78.0
+%global bootstrap_channel 1.78.0
+%global bootstrap_date 2024-05-02
 
 # Only the specified arches will use bootstrap binaries.
 # NOTE: Those binaries used to be uploaded with every new release, but that was
@@ -67,7 +67,7 @@ ExclusiveArch:  %{rust_arches}
 # We can also choose to just use Rust's bundled LLVM, in case the system LLVM
 # is insufficient.  Rust currently requires LLVM 16.0+.
 %global min_llvm_version 16.0.0
-%global bundled_llvm_version 18.1.2
+%global bundled_llvm_version 18.1.4
 #global llvm_compat_version 17
 %global llvm llvm%{?llvm_compat_version}
 %bcond_with bundled_llvm
@@ -151,32 +151,13 @@ Patch4:         0001-bootstrap-allow-disabling-target-self-contained.patch
 Patch5:         0002-set-an-external-library-path-for-wasm32-wasi.patch
 
 # We don't want to use the bundled library in libsqlite3-sys
-Patch6:         rustc-1.78.0-unbundle-sqlite.patch
-
-# https://github.com/rust-lang/rust/pull/123520
-Patch7:         0001-bootstrap-move-all-of-rustc-s-flags-to-rustc_cargo.patch
-
-# https://github.com/rust-lang/rust/pull/123652
-Patch8:         0001-Fix-UI-tests-with-dist-vendored-dependencies.patch
-
-# https://github.com/rust-lang/rust/pull/122270
-Patch9:         0001-fix-long-linker-command-lines-failure-caused-by-rust.patch
-
-# https://github.com/rust-lang/rust/pull/123763
-Patch10:        0001-Set-the-host-library-path-in-run-make-v2.patch
-Patch11:        0002-Use-env-split_paths-join_paths-in-runtest.patch
+Patch6:         rustc-1.79.0-unbundle-sqlite.patch
 
 # https://github.com/rust-lang/rust/pull/124597
-Patch12:        0001-Use-an-explicit-x86-64-cpu-in-tests-that-are-sensiti.patch
+Patch7:         0001-Use-an-explicit-x86-64-cpu-in-tests-that-are-sensiti.patch
 
-# https://github.com/rust-lang/cargo/pull/13744
-Patch20:        0001-test-don-t-compress-test-registry-crates.patch
-
-# https://github.com/rust-lang/cargo/pull/13789
-Patch21:        0001-Fix-2-tests-for-offline-execution.patch
-
-# https://github.com/rust-lang/rust-clippy/pull/12682
-Patch30:        0001-The-multiple_unsafe_ops_per_block-test-needs-asm.patch
+# Fix codegen test failure on big endian: https://github.com/rust-lang/rust/pull/126263
+Patch8:         0001-Make-issue-122805.rs-big-endian-compatible.patch
 
 ### RHEL-specific patches below ###
 
@@ -187,7 +168,7 @@ Source102:      cargo_vendor.attr
 Source103:      cargo_vendor.prov
 
 # Disable cargo->libgit2->libssh2 on RHEL, as it's not approved for FIPS (rhbz1732949)
-Patch100:       rustc-1.78.0-disable-libssh2.patch
+Patch100:       rustc-1.79.0-disable-libssh2.patch
 
 # Get the Rust triple for any arch.
 %{lua: function rust_triple(arch)
@@ -301,9 +282,16 @@ BuildRequires:  procps-ng
 
 # debuginfo-gdb tests need gdb
 BuildRequires:  gdb
+# Work around https://bugzilla.redhat.com/show_bug.cgi?id=2275274:
+# gdb currently prints a "Unable to load 'rpm' module.  Please install the python3-rpm package."
+# message that breaks version detection.
+BuildRequires:  python3-rpm
 
 # For src/test/run-make/static-pie
 BuildRequires:  glibc-static
+
+# For tests/run-make/pgo-branch-weights
+BuildRequires:  binutils-gold
 
 # Virtual provides for folks who attempt "dnf install rustc"
 Provides:       rustc = %{version}-%{release}
@@ -666,15 +654,6 @@ rm -rf %{wasi_libc_dir}/dlmalloc/
 %endif
 %patch -P7 -p1
 %patch -P8 -p1
-%patch -P9 -p1
-%patch -P10 -p1
-%patch -P11 -p1
-%patch -P12 -p1
-
-%patch -P20 -p1 -d src/tools/cargo
-%patch -P21 -p1 -d src/tools/cargo
-
-%patch -P30 -p1 -d src/tools/clippy
 
 %if %with disabled_libssh2
 %patch -P100 -p1
