@@ -623,6 +623,8 @@ Summary:        Rust Toolset
 BuildArch:      noarch
 Requires:       rust = %{version}-%{release}
 Requires:       cargo = %{version}-%{release}
+Requires:       rust-toolset-srpm-macros = %{version}-%{release}
+Conflicts:      cargo-rpm-macros
 
 %description toolset
 This is the metapackage for Rust Toolset, bringing in the Rust compiler,
