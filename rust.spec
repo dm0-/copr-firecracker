@@ -65,9 +65,9 @@ ExclusiveArch:  %{rust_arches}
 %bcond_with llvm_static
 
 # We can also choose to just use Rust's bundled LLVM, in case the system LLVM
-# is insufficient.  Rust currently requires LLVM 16.0+.
-%global min_llvm_version 16.0.0
-%global bundled_llvm_version 18.1.4
+# is insufficient.  Rust currently requires LLVM 17.0+.
+%global min_llvm_version 17.0.0
+%global bundled_llvm_version 18.1.7
 #global llvm_compat_version 17
 %global llvm llvm%{?llvm_compat_version}
 %bcond_with bundled_llvm
