@@ -48,7 +48,7 @@
 
 # __cargo: cargo command with environment variables
 #
-# CARGO_HOME: This ensures cargo reads configuration file from .cargo/config,
+# CARGO_HOME: This ensures cargo reads configuration file from .cargo/config.toml,
 #       and prevents writing any files to $HOME during RPM builds.
 %__cargo /usr/bin/env CARGO_HOME=.cargo RUSTFLAGS='%{build_rustflags}' /usr/bin/cargo
 
@@ -61,7 +61,7 @@
 #
 # This involves four steps:
 # - create the ".cargo" directory if it doesn't exist yet
-# - dump custom cargo configuration into ".cargo/config"
+# - dump custom cargo configuration into ".cargo/config.toml"
 # - remove "Cargo.lock" if it exists (it breaks builds with custom cargo config)
 # - remove "Cargo.toml.orig" if it exists (it breaks running "cargo package")
 #
@@ -79,7 +79,7 @@ set -euo pipefail\
 /usr/bin/ln -s rpm target/release\
 %{__rm} -rf .cargo/\
 %{__mkdir} -p .cargo\
-cat > .cargo/config << EOF\
+cat > .cargo/config.toml << EOF\
 [build]\
 rustc = "%{__rustc}"\
 rustdoc = "%{__rustdoc}"\
@@ -104,7 +104,7 @@ verbose = true\
 EOF\
 %{-V:%{__tar} -xoaf %{S:%{-V*}}}\
 %{!?-N:\
-cat >> .cargo/config << EOF\
+cat >> .cargo/config.toml << EOF\
 [source.vendored-sources]\
 directory = "%{-v*}%{-V:./vendor}"\
 \
