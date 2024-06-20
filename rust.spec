@@ -50,8 +50,7 @@ ExclusiveArch:  %{rust_arches}
 # We need CRT files for *-wasi targets, at least as new as the commit in
 # src/ci/docker/host-x86_64/dist-various-2/build-wasi-toolchain.sh
 %global wasi_libc_url https://github.com/WebAssembly/wasi-libc
-#global wasi_libc_ref wasi-sdk-21
-%global wasi_libc_ref 03b228e46bb02fcc5927253e1b8ad715072b1ae4
+%global wasi_libc_ref wasi-sdk-22
 %global wasi_libc_name wasi-libc-%{wasi_libc_ref}
 %global wasi_libc_source %{wasi_libc_url}/archive/%{wasi_libc_ref}/%{wasi_libc_name}.tar.gz
 %global wasi_libc_dir %{_builddir}/%{wasi_libc_name}
@@ -773,7 +772,9 @@ fi
 
 %if %defined wasm_targets
 %if %with bundled_wasi_libc
-%make_build --quiet -C %{wasi_libc_dir} MALLOC_IMPL=emmalloc CC=clang AR=llvm-ar NM=llvm-nm
+%define wasi_libc_flags MALLOC_IMPL=emmalloc CC=clang AR=llvm-ar NM=llvm-nm
+%make_build --quiet -C %{wasi_libc_dir} %{wasi_libc_flags} TARGET_TRIPLE=wasm32-wasi
+%make_build --quiet -C %{wasi_libc_dir} %{wasi_libc_flags} TARGET_TRIPLE=wasm32-wasip1
 %define wasm_target_config %{shrink:
   --set target.wasm32-wasi.wasi-root=%{wasi_libc_dir}/sysroot
   --set target.wasm32-wasip1.wasi-root=%{wasi_libc_dir}/sysroot
