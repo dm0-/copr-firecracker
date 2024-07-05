@@ -1,6 +1,0 @@
-summary+: ": stratisd"
-require+:
-  - stratisd
-environment+:
-  PKG_TO_BUILD: "stratisd"
-duration: 1h

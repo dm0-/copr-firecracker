@@ -1,3 +1,0 @@
-PURPOSE of /tools/rust/Sanity/rust-wasm-smoke-test
-Description: Test that the rust wasm target is enabled and can compile correctly
-Author: Jesus Checa <jcheca@redhat.com>
