@@ -11,7 +11,18 @@ switch to that in the future.
 
 --- a/resources/seccomp/aarch64-unknown-linux-musl.json
 +++ b/resources/seccomp/aarch64-unknown-linux-musl.json
-@@ -108,7 +108,7 @@
+@@ -74,10 +74,6 @@
+                 "syscall": "fstat",
+                 "comment": "Used for drive patching & rescanning, for reading the local timezone from /etc/localtime"
+             },
+-            {
+-                "syscall": "faccessat",
+-                "comment": "Used by aws-lc-sys"
+-            },
+             {
+                 "syscall": "ftruncate",
+                 "comment": "Used for snapshotting"
+@@ -112,7 +108,7 @@
              },
              {
                "syscall": "getrandom",
@@ -20,7 +31,7 @@ switch to that in the future.
              },
              {
                  "syscall": "accept4",
-@@ -210,7 +210,16 @@
+@@ -214,7 +210,16 @@
              },
              {
                  "syscall": "madvise",
@@ -69,15 +80,50 @@ switch to that in the future.
                  "syscall": "mmap",
 --- a/src/vmm/Cargo.toml
 +++ b/src/vmm/Cargo.toml
-@@ -9,7 +9,7 @@
- bench = false
- 
+@@ -11,7 +11,7 @@
  [dependencies]
--aws-lc-rs = { version = "1.6.1", features = ["bindgen"] }
+ acpi_tables = { path = "../acpi-tables" } 
+ aes-gcm =  { version = "0.10.1", default-features = false, features = ["aes"] }
+-aws-lc-rs = { version = "1.8.0", features = ["bindgen"] }
 +rand = "0.8.5"
- bitflags = "2.0.2"
- derive_more = { version = "0.99.17", default-features = false, features = ["from", "display"] }
- event-manager = "0.4.0"
+ base64 = "0.22.1"
+ bincode = "1.2.1"
+ bitflags = "2.5.0"
+--- a/src/vmm/src/devices/acpi/vmgenid.rs
++++ b/src/vmm/src/devices/acpi/vmgenid.rs
+@@ -2,9 +2,9 @@
+ // SPDX-License-Identifier: Apache-2.0
+ 
+ use acpi_tables::{aml, Aml};
+-use aws_lc_rs::error::Unspecified as RandError;
+-use aws_lc_rs::rand;
+ use log::{debug, error};
++use rand::rngs::OsRng;
++use rand::RngCore;
+ use serde::{Deserialize, Serialize};
+ use utils::eventfd::EventFd;
+ use vm_memory::{GuestAddress, GuestMemoryError};
+@@ -42,7 +42,7 @@
+     /// Error accessing VMGenID memory: {0}
+     GuestMemory(#[from] GuestMemoryError),
+     /// Create generation ID error: {0}
+-    GenerationId(#[from] RandError),
++    GenerationId(#[from] rand::Error),
+     /// Failed to allocate requested resource: {0}
+     Allocator(#[from] vm_allocator::Error),
+ }
+@@ -96,9 +96,9 @@
+     }
+ 
+     // Create a 16-bytes random number
+-    fn make_genid() -> Result<u128, RandError> {
++    fn make_genid() -> Result<u128, rand::Error> {
+         let mut gen_id_bytes = [0u8; 16];
+-        rand::fill(&mut gen_id_bytes)
++        OsRng.try_fill_bytes(&mut gen_id_bytes)
+             .inspect_err(|err| error!("vmgenid: could not create new generation ID: {err}"))?;
+         Ok(u128::from_le_bytes(gen_id_bytes))
+     }
 --- a/src/vmm/src/devices/virtio/rng/device.rs
 +++ b/src/vmm/src/devices/virtio/rng/device.rs
 @@ -5,7 +5,8 @@
