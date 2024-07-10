@@ -6,9 +6,9 @@ This crate has licensing issues and is only used for a developer test.
  vmm = { path = "../vmm" }
  
  [dev-dependencies]
--cargo_toml = "0.19.1"
- libc = "0.2.153"
- regex = { version = "1.10.2", default-features = false, features = ["std", "unicode-perl"] }
+-cargo_toml = "0.20.2"
+ libc = "0.2.155"
+ regex = { version = "1.10.4", default-features = false, features = ["std", "unicode-perl"] }
  
 --- a/src/firecracker/tests/verify_dependencies.rs
 +++ b/src/firecracker/tests/verify_dependencies.rs

@@ -8,33 +8,28 @@
 %bcond check    0
 
 # The jailer's documentation says only musl targets are supported.
-%bcond jailer   %{lua:print(rpm.expand("%{cargo_target}"):find("musl") or 0)}
+%bcond jailer   %{lua:print(rpm.expand("%{?cargo_target}"):find("musl") or 0)}
 
 Name:           firecracker
-Version:        1.7.0
-Release:        2%{?dist}
+Version:        1.8.0
+Release:        1%{?dist}
 
 Summary:        Secure and fast microVMs for serverless computing
 SourceLicense:  Apache-2.0
-License:        Apache-2.0 AND (Apache-2.0 OR BSL-1.0) AND (Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT) AND BSD-3-Clause AND MIT AND (MIT OR Unlicense) AND Unicode-DFS-2016
+License:        Apache-2.0 AND (Apache-2.0 OR BSD-2-Clause OR MIT) AND (Apache-2.0 OR BSL-1.0) AND (Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT) AND BSD-3-Clause AND MIT AND (MIT OR Unlicense) AND Unicode-DFS-2016
 URL:            https://firecracker-microvm.github.io/
 
 Source0:        https://github.com/firecracker-microvm/firecracker/archive/v%{version}/%{name}-%{version}.tar.gz
 
 # Bundle forked versions of existing crates to avoid conflicts with upstreams.
-Source1:        https://github.com/firecracker-microvm/kvm-bindings/archive/60cc04e2658646516f4e763eca77fbfa1cf5ec1f/kvm-bindings-60cc04e.tar.gz
-Source2:        https://github.com/firecracker-microvm/micro-http/archive/ef43cef7162a55a6790d528a5e76b4fe2da22de0/micro_http-ef43cef.tar.gz
-Provides:       bundled(crate(kvm-bindings)) = 0.7.0^git60cc04e
+Source1:        https://github.com/firecracker-microvm/micro-http/archive/ef43cef7162a55a6790d528a5e76b4fe2da22de0/micro_http-ef43cef.tar.gz
 Provides:       bundled(crate(micro_http)) = 0.1.0^gitef43cef
 
 # Edit crate dependencies to track what is packaged in Fedora.
-Patch:          %{name}-1.7.0-remove-aws-lc-rs.patch
-Patch:          %{name}-1.7.0-remove-cargo_toml.patch
-Patch:          %{name}-1.7.0-remove-criterion.patch
-Patch:          %{name}-1.7.0-remove-device_tree.patch
-Patch:          %{name}-1.7.0-update-userfaultfd.patch
-Patch:          %{name}-1.7.0-update-vm-memory.patch
-Patch:          %{name}-1.7.0-update-vm-superio.patch
+Patch:          %{name}-1.8.0-remove-aws-lc-rs.patch
+Patch:          %{name}-1.8.0-remove-cargo_toml.patch
+Patch:          %{name}-1.8.0-remove-criterion.patch
+Patch:          %{name}-1.8.0-remove-device_tree.patch
 
 BuildRequires:  cargo-rpm-macros >= 24
 %if %{defined cargo_target}
@@ -57,14 +52,9 @@ release.  It is not production ready without additional sandboxing.}
 
 %prep
 %autosetup -p1
-
-# Extract the bundled forked crates and point their users at the paths.
 mkdir forks
-tar --transform='s,^[^/]*,kvm-bindings,' -C forks -xzf %{SOURCE1}
-tar --transform='s,^[^/]*,micro_http,' -C forks -xzf %{SOURCE2}
-sed -i -e 's@^\(kvm-bindings\|micro_http\) = {.*\(, features =.*\| }$\)@\1 = { path = "../../forks/\1"\2@' Cargo.toml src/*/Cargo.toml
-sed -i -e 's,../../forks,forks,' Cargo.toml
-
+tar --transform='s,^[^/]*,micro_http,' -C forks -xzf %{SOURCE1}
+sed -i -e 's,^\(micro_http\) = .*,\1 = { path = "../../forks/\1" },' src/*/Cargo.toml
 %cargo_prep
 
 %generate_buildrequires
@@ -106,6 +96,9 @@ done
 
 
 %changelog
+* Tue Jul 09 2024 David Michael <fedora.dm0@gmail.com> - 1.8.0-1
+- Update to the 1.8.0 release.
+
 * Thu Apr 25 2024 David Michael <fedora.dm0@gmail.com> - 1.7.0-2
 - Sync vm-superio with the upstream version fixing the vmm-sys-util CVE.
 
