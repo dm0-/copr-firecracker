@@ -292,7 +292,10 @@ BuildRequires:  python3-rpm
 BuildRequires:  glibc-static
 
 # For tests/run-make/pgo-branch-weights
+# riscv64 does not support binutils-gold yet
+%ifnarch riscv64
 BuildRequires:  binutils-gold
+%endif
 
 # Virtual provides for folks who attempt "dnf install rustc"
 Provides:       rustc = %{version}-%{release}
