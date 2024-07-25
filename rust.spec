@@ -35,12 +35,17 @@ ExclusiveArch:  %{rust_arches}
 # NB: wasm32-wasi is being gradually replaced by wasm32-wasip1
 # https://blog.rust-lang.org/2024/04/09/updates-to-rusts-wasi-targets.html
 %global wasm_targets wasm32-unknown-unknown wasm32-wasi wasm32-wasip1
-%if 0%{?fedora} || 0%{?rhel} >= 10
+%if 0%{?fedora}
 %global extra_targets x86_64-unknown-none x86_64-unknown-uefi
+%endif
+%if 0%{?rhel} >= 10
+%global extra_targets x86_64-unknown-none
 %endif
 %endif
 %ifarch aarch64
+%if 0%{?fedora}
 %global extra_targets aarch64-unknown-none-softfloat aarch64-unknown-uefi
+%endif
 %endif
 %global all_targets %{?mingw_targets} %{?wasm_targets} %{?extra_targets}
 %define target_enabled() %{lua:
