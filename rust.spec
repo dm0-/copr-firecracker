@@ -1,5 +1,5 @@
 Name:           rust
-Version:        1.79.0
+Version:        1.80.0
 Release:        %autorelease
 Summary:        The Rust Programming Language
 License:        (Apache-2.0 OR MIT) AND (Artistic-2.0 AND BSD-3-Clause AND ISC AND MIT AND MPL-2.0 AND Unicode-DFS-2016)
@@ -14,9 +14,9 @@ ExclusiveArch:  %{rust_arches}
 # To bootstrap from scratch, set the channel and date from src/stage0.json
 # e.g. 1.59.0 wants rustc: 1.58.0-2022-01-13
 # or nightly wants some beta-YYYY-MM-DD
-%global bootstrap_version 1.78.0
-%global bootstrap_channel 1.78.0
-%global bootstrap_date 2024-05-02
+%global bootstrap_version 1.79.0
+%global bootstrap_channel 1.79.0
+%global bootstrap_date 2024-06-13
 
 # Only the specified arches will use bootstrap binaries.
 # NOTE: Those binaries used to be uploaded with every new release, but that was
@@ -155,13 +155,10 @@ Patch4:         0001-bootstrap-allow-disabling-target-self-contained.patch
 Patch5:         0002-set-an-external-library-path-for-wasm32-wasi.patch
 
 # We don't want to use the bundled library in libsqlite3-sys
-Patch6:         rustc-1.79.0-unbundle-sqlite.patch
-
-# https://github.com/rust-lang/rust/pull/124597
-Patch7:         0001-Use-an-explicit-x86-64-cpu-in-tests-that-are-sensiti.patch
+Patch6:         rustc-1.80.0-unbundle-sqlite.patch
 
 # Fix codegen test failure on big endian: https://github.com/rust-lang/rust/pull/126263
-Patch8:         0001-Make-issue-122805.rs-big-endian-compatible.patch
+Patch7:         0001-Make-issue-122805.rs-big-endian-compatible.patch
 
 ### RHEL-specific patches below ###
 
@@ -172,7 +169,7 @@ Source102:      cargo_vendor.attr
 Source103:      cargo_vendor.prov
 
 # Disable cargo->libgit2->libssh2 on RHEL, as it's not approved for FIPS (rhbz1732949)
-Patch100:       rustc-1.79.0-disable-libssh2.patch
+Patch100:       rustc-1.80.0-disable-libssh2.patch
 
 # Get the Rust triple for any arch.
 %{lua: function rust_triple(arch)
@@ -663,7 +660,6 @@ rm -rf %{wasi_libc_dir}/dlmalloc/
 %patch -P6 -p1
 %endif
 %patch -P7 -p1
-%patch -P8 -p1
 
 %if %with disabled_libssh2
 %patch -P100 -p1
