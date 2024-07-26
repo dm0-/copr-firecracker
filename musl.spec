@@ -87,8 +87,8 @@
 %endif
 
 Name:		musl
-Version:	1.2.3
-Release:	8%{?dist}
+Version:	1.2.5
+Release:	1%{?dist}
 Summary:	Fully featured lightweight standard C library for Linux
 License:	MIT
 URL:		https://musl.libc.org
@@ -270,23 +270,12 @@ ln -sr %{buildroot}/lib/ld-musl-%{_musl_target_cpu}.so.1 %{buildroot}%{_syslibdi
 %endif
 %endif
 
-mkdir -p %{buildroot}%{_rpmmacrodir}
-%if %{without crossmode}
-cat > %{buildroot}%{_rpmmacrodir}/macros.musl <<EOF
+mkdir -p %{buildroot}%{_rpmconfigdir}/macros.d
+touch %{buildroot}%{_rpmconfigdir}/macros.d/macros.musl
+cat > %{buildroot}%{_rpmconfigdir}/macros.d/macros.musl <<EOF
 %%_musl_libdir %{_libdir}
 %%_musl_includedir %{_includedir}
 EOF
-%else
-# Support installing multiple architecture sysroots at once.
-cat > %{buildroot}%{_rpmmacrodir}/macros.musl-%{_musl_target_cpu} <<EOF
-%%_musl_includedir %{_includedir}
-%%_musl_libdir %{_libdir}
-%%_musl_%{_musl_target_cpu}_sysroot %%{_prefix}/%{_musl_platform}
-%%_musl_%{_musl_target_cpu}_includedir %%{_musl_%{_musl_target_cpu}_sysroot}/usr/include
-%%_musl_%{_musl_target_cpu}_libdir %%{_musl_%{_musl_target_cpu}_sysroot}/usr/%{_lib}
-EOF
-ln -fns . %{buildroot}%{_prefix}/%{_musl_platform}/usr
-%endif
 
 %files libc
 %license COPYRIGHT
@@ -303,7 +292,6 @@ ln -fns . %{buildroot}%{_prefix}/%{_musl_platform}/usr
 %files filesystem
 %if %{with crossmode}
 %dir %{_prefix}/%{_musl_platform}
-%{_prefix}/%{_musl_platform}/usr
 %endif
 %dir %{_libdir}
 %dir %{_includedir}
@@ -317,7 +305,7 @@ ln -fns . %{buildroot}%{_prefix}/%{_musl_platform}/usr
 %{_libdir}/*.o
 %{_libdir}/*.a
 %exclude %{_libdir}/libc.a
-%{_rpmmacrodir}/macros.musl*
+%{_rpmconfigdir}/macros.d/macros.musl
 
 %files libc-static
 %license COPYRIGHT
@@ -335,9 +323,8 @@ ln -fns . %{buildroot}%{_prefix}/%{_musl_platform}/usr
 
 
 %changelog
-* Thu Jul 18 2024 David Michael <fedora.dm0@gmail.com> - 1.2.3-8
-- Support parallel multiarch installation.
-- Make crossmode sysroot-compatible with /usr prefixed paths.
+* Tue Jul 23 2024 Mary Guillemard <mary@mary.zone> - 1.2.5-1
+- Update to 1.2.5
 
 * Thu Jul 18 2024 Fedora Release Engineering <releng@fedoraproject.org> - 1.2.3-7
 - Rebuilt for https://fedoraproject.org/wiki/Fedora_41_Mass_Rebuild
