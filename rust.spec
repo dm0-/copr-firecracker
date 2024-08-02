@@ -47,7 +47,7 @@ ExclusiveArch:  %{rust_arches}
 %global musl_targets %{_target_cpu}-unknown-linux-musl
 %endif
 %ifarch aarch64
-%if 0%{?fedora}
+%if 0%{!?musl_targets:%{?fedora}}
 %global extra_targets aarch64-unknown-none-softfloat aarch64-unknown-uefi
 %endif
 %endif
@@ -56,8 +56,9 @@ ExclusiveArch:  %{rust_arches}
   print(string.find(rpm.expand(" %{all_targets} "), rpm.expand(" %1 "), 1, true) or 0)
 }
 
-# Use the bundled musl by default.  It's not set up to share the library, and
-# Fedora's static libunwind package is incompatible (built against glibc).
+# Use the self-contained musl by default, and build a static libunwind from the
+# bundled code since Fedora's RPM is incompatible (built against glibc).  This
+# condition is overloaded, and disabling it is not expected to work.
 %bcond_without bundled_musl_libc
 
 # We need CRT files for *-wasi targets, at least as new as the commit in
@@ -701,10 +702,10 @@ sed -i.rust-src -e "s#@BUILDDIR@#$PWD#" ./src/etc/rust-gdb
 %if %without bundled_llvm
 %if %{defined musl_targets} && %{with bundled_musl_libc}
 %patch -P99 -p1
-mv -t . src/llvm-project/compiler-rt/lib/builtins/crt{begin,end}.c src/llvm-project/libunwind
+mv -t . src/llvm-project/{compiler-rt,libunwind}
 rm -rf src/llvm-project
 mkdir -p src/llvm-project
-mv -t src/llvm-project libunwind
+mv -t src/llvm-project compiler-rt libunwind
 %else
 rm -rf src/llvm-project/
 mkdir -p src/llvm-project/libunwind/
@@ -886,7 +887,7 @@ test -r "%{profiler}"
   --set build.doc-stage=2 \
   --set build.install-stage=2 \
   --set build.test-stage=2 \
-  --set build.optimized-compiler-builtins=false \
+  --set build.optimized-compiler-builtins=%[ "%{?musl_targets:%{_arch}}" == "aarch64" ? "true" : "false" ] \
   --enable-extended \
   --tools=cargo,clippy,rls,rust-analyzer,rustfmt,src \
   --enable-vendor \

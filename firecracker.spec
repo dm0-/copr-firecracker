@@ -61,6 +61,7 @@ sed -i -e 's,^\(micro_http\) = .*,\1 = { path = "../../forks/\1" },' src/*/Cargo
 %cargo_generate_buildrequires
 
 %build
+export AR=ar RANLIB=ranlib
 %cargo_build -- --package={cpu-template-helper,firecracker,%{?with_jailer:jailer,}rebase-snap,seccompiler,snapshot-editor} %{?cargo_target:--target=%{cargo_target}}
 %{cargo_license} > LICENSE.dependencies
 

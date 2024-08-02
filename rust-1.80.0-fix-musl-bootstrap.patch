@@ -1,20 +1,7 @@
-Since the Fedora source prep removes llvm-project, save the needed crt*.c files
-outside that path and point the build system at them.  Also define build flags
-that override the default packaging flags to work with musl.
+Define build flags to work with Fedora's musl sysroot.
 
 --- a/src/bootstrap/src/core/build_steps/llvm.rs
 +++ b/src/bootstrap/src/core/build_steps/llvm.rs
-@@ -1208,8 +1208,8 @@
-             return out_dir;
-         }
- 
--        let crtbegin_src = builder.src.join("src/llvm-project/compiler-rt/lib/builtins/crtbegin.c");
--        let crtend_src = builder.src.join("src/llvm-project/compiler-rt/lib/builtins/crtend.c");
-+        let crtbegin_src = builder.src.join("crtbegin.c");
-+        let crtend_src = builder.src.join("crtend.c");
-         if up_to_date(&crtbegin_src, &out_dir.join("crtbeginS.o"))
-             && up_to_date(&crtend_src, &out_dir.join("crtendS.o"))
-         {
 @@ -1242,6 +1242,7 @@
              .define("CRT_HAS_INITFINI_ARRAY", None)
              .define("EH_USE_FRAME_REGISTRY", None);
