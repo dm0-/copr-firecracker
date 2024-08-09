@@ -1,5 +1,5 @@
 Name:           rust
-Version:        1.80.0
+Version:        1.80.1
 Release:        %autorelease
 Summary:        The Rust Programming Language
 License:        (Apache-2.0 OR MIT) AND (Artistic-2.0 AND BSD-3-Clause AND ISC AND MIT AND MPL-2.0 AND Unicode-DFS-2016)
