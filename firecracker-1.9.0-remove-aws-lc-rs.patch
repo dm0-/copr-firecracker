@@ -84,11 +84,11 @@ switch to that in the future.
  [dependencies]
  acpi_tables = { path = "../acpi-tables" } 
  aes-gcm =  { version = "0.10.1", default-features = false, features = ["aes"] }
--aws-lc-rs = { version = "1.8.0", features = ["bindgen"] }
+-aws-lc-rs = { version = "1.8.1", features = ["bindgen"] }
 +rand = "0.8.5"
  base64 = "0.22.1"
  bincode = "1.2.1"
- bitflags = "2.5.0"
+ bitflags = "2.6.0"
 --- a/src/vmm/src/devices/acpi/vmgenid.rs
 +++ b/src/vmm/src/devices/acpi/vmgenid.rs
 @@ -2,9 +2,9 @@
@@ -103,7 +103,7 @@ switch to that in the future.
  use serde::{Deserialize, Serialize};
  use utils::eventfd::EventFd;
  use vm_memory::{GuestAddress, GuestMemoryError};
-@@ -42,7 +42,7 @@
+@@ -45,7 +45,7 @@
      /// Error accessing VMGenID memory: {0}
      GuestMemory(#[from] GuestMemoryError),
      /// Create generation ID error: {0}
@@ -112,7 +112,7 @@ switch to that in the future.
      /// Failed to allocate requested resource: {0}
      Allocator(#[from] vm_allocator::Error),
  }
-@@ -96,9 +96,9 @@
+@@ -100,9 +100,9 @@
      }
  
      // Create a 16-bytes random number
@@ -148,7 +148,7 @@ switch to that in the future.
 @@ -113,7 +114,7 @@
          }
  
-         let mut rand_bytes = vec![0; iovec.len()];
+         let mut rand_bytes = vec![0; iovec.len() as usize];
 -        rand::fill(&mut rand_bytes).map_err(|err| {
 +        OsRng.try_fill_bytes(&mut rand_bytes).map_err(|err| {
              METRICS.host_rng_fails.inc();
