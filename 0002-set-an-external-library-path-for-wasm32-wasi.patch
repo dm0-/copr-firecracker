@@ -1,4 +1,4 @@
-From e3b7d2e3d3b4fcbc6591de606957c0fd59b5e547 Mon Sep 17 00:00:00 2001
+From 348b03695d916ab23a9d66c4ceed2ecbecfc68e7 Mon Sep 17 00:00:00 2001
 From: Josh Stone <jistone@redhat.com>
 Date: Thu, 28 Sep 2023 18:18:16 -0700
 Subject: [PATCH 2/2] set an external library path for wasm32-wasi
@@ -10,10 +10,10 @@ Subject: [PATCH 2/2] set an external library path for wasm32-wasi
  3 files changed, 17 insertions(+), 3 deletions(-)
 
 diff --git a/compiler/rustc_codegen_ssa/src/back/link.rs b/compiler/rustc_codegen_ssa/src/back/link.rs
-index f5e8d5fc92a9..f4ad3f725427 100644
+index 8c582fac0d82..169d86cd6224 100644
 --- a/compiler/rustc_codegen_ssa/src/back/link.rs
 +++ b/compiler/rustc_codegen_ssa/src/back/link.rs
-@@ -1563,6 +1563,12 @@ fn get_object_file_path(sess: &Session, name: &str, self_contained: bool) -> Pat
+@@ -1586,6 +1586,12 @@ fn get_object_file_path(sess: &Session, name: &str, self_contained: bool) -> Pat
              return file_path;
          }
      }
@@ -26,7 +26,7 @@ index f5e8d5fc92a9..f4ad3f725427 100644
      for search_path in fs.search_paths() {
          let file_path = search_path.dir.join(name);
          if file_path.exists() {
-@@ -2049,6 +2055,9 @@ fn add_library_search_dirs(cmd: &mut dyn Linker, sess: &Session, self_contained:
+@@ -2076,6 +2082,9 @@ fn add_library_search_dirs(cmd: &mut dyn Linker, sess: &Session, self_contained:
          let lib_path = sess.target_filesearch(PathKind::All).get_self_contained_lib_path();
          cmd.include_path(&fix_windows_verbatim_for_gcc(&lib_path));
      }
@@ -37,10 +37,10 @@ index f5e8d5fc92a9..f4ad3f725427 100644
  
  /// Add options making relocation sections in the produced ELF files read-only
 diff --git a/compiler/rustc_target/src/spec/mod.rs b/compiler/rustc_target/src/spec/mod.rs
-index 941d767b850d..cd0a2ce51989 100644
+index 607eeac7ccdc..63070622502e 100644
 --- a/compiler/rustc_target/src/spec/mod.rs
 +++ b/compiler/rustc_target/src/spec/mod.rs
-@@ -1881,6 +1881,7 @@ pub struct TargetOptions {
+@@ -2033,6 +2033,7 @@ pub struct TargetOptions {
      /// Objects to link before and after all other object code.
      pub pre_link_objects: CrtObjects,
      pub post_link_objects: CrtObjects,
@@ -48,7 +48,7 @@ index 941d767b850d..cd0a2ce51989 100644
      /// Same as `(pre|post)_link_objects`, but when self-contained linking mode is enabled.
      pub pre_link_objects_self_contained: CrtObjects,
      pub post_link_objects_self_contained: CrtObjects,
-@@ -2368,6 +2369,7 @@ fn default() -> TargetOptions {
+@@ -2520,6 +2521,7 @@ fn default() -> TargetOptions {
              relro_level: RelroLevel::None,
              pre_link_objects: Default::default(),
              post_link_objects: Default::default(),
@@ -56,7 +56,7 @@ index 941d767b850d..cd0a2ce51989 100644
              pre_link_objects_self_contained: Default::default(),
              post_link_objects_self_contained: Default::default(),
              link_self_contained: LinkSelfContainedDefault::False,
-@@ -3064,6 +3066,7 @@ macro_rules! key {
+@@ -3202,6 +3204,7 @@ macro_rules! key {
          key!(linker_is_gnu_json = "linker-is-gnu", bool);
          key!(pre_link_objects = "pre-link-objects", link_objects);
          key!(post_link_objects = "post-link-objects", link_objects);
@@ -64,7 +64,7 @@ index 941d767b850d..cd0a2ce51989 100644
          key!(pre_link_objects_self_contained = "pre-link-objects-fallback", link_objects);
          key!(post_link_objects_self_contained = "post-link-objects-fallback", link_objects);
          // Deserializes the backwards-compatible variants of `-Clink-self-contained`
-@@ -3327,6 +3330,7 @@ macro_rules! target_option_val {
+@@ -3464,6 +3467,7 @@ macro_rules! target_option_val {
          target_option_val!(linker_is_gnu_json, "linker-is-gnu");
          target_option_val!(pre_link_objects);
          target_option_val!(post_link_objects);
@@ -73,11 +73,11 @@ index 941d767b850d..cd0a2ce51989 100644
          target_option_val!(post_link_objects_self_contained, "post-link-objects-fallback");
          target_option_val!(link_args - pre_link_args_json, "pre-link-args");
 diff --git a/compiler/rustc_target/src/spec/targets/wasm32_wasip1.rs b/compiler/rustc_target/src/spec/targets/wasm32_wasip1.rs
-index 7cbe9f09e6ca..b524890c2ec5 100644
+index a8e7f22c0689..55949557d6bb 100644
 --- a/compiler/rustc_target/src/spec/targets/wasm32_wasip1.rs
 +++ b/compiler/rustc_target/src/spec/targets/wasm32_wasip1.rs
-@@ -20,11 +20,12 @@ pub fn target() -> Target {
-     options.os = "wasi".into();
+@@ -21,11 +21,12 @@ pub fn target() -> Target {
+     options.env = "p1".into();
      options.add_pre_link_args(LinkerFlavor::WasmLld(Cc::Yes), &["--target=wasm32-wasi"]);
  
 -    options.pre_link_objects_self_contained = crt_objects::pre_wasi_self_contained();
@@ -93,5 +93,5 @@ index 7cbe9f09e6ca..b524890c2ec5 100644
      // Right now this is a bit of a workaround but we're currently saying that
      // the target by default has a static crt which we're taking as a signal
 -- 
-2.44.0
+2.46.0
 

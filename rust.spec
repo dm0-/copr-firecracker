@@ -1,5 +1,5 @@
 Name:           rust
-Version:        1.80.1
+Version:        1.81.0
 Release:        %autorelease
 Summary:        The Rust Programming Language
 License:        (Apache-2.0 OR MIT) AND (Artistic-2.0 AND BSD-3-Clause AND ISC AND MIT AND MPL-2.0 AND Unicode-DFS-2016)
@@ -14,9 +14,9 @@ ExclusiveArch:  %{rust_arches}
 # To bootstrap from scratch, set the channel and date from src/stage0.json
 # e.g. 1.59.0 wants rustc: 1.58.0-2022-01-13
 # or nightly wants some beta-YYYY-MM-DD
-%global bootstrap_version 1.79.0
-%global bootstrap_channel 1.79.0
-%global bootstrap_date 2024-06-13
+%global bootstrap_version 1.80.1
+%global bootstrap_channel 1.80.1
+%global bootstrap_date 2024-08-08
 
 # Only the specified arches will use bootstrap binaries.
 # NOTE: Those binaries used to be uploaded with every new release, but that was
@@ -55,7 +55,8 @@ ExclusiveArch:  %{rust_arches}
 # We need CRT files for *-wasi targets, at least as new as the commit in
 # src/ci/docker/host-x86_64/dist-various-2/build-wasi-toolchain.sh
 %global wasi_libc_url https://github.com/WebAssembly/wasi-libc
-%global wasi_libc_ref wasi-sdk-22
+#global wasi_libc_ref wasi-sdk-23
+%global wasi_libc_ref 3f43ea9abb24ed8d24d760989e1d87ea385f8eaa
 %global wasi_libc_name wasi-libc-%{wasi_libc_ref}
 %global wasi_libc_source %{wasi_libc_url}/archive/%{wasi_libc_ref}/%{wasi_libc_name}.tar.gz
 %global wasi_libc_dir %{_builddir}/%{wasi_libc_name}
@@ -78,10 +79,10 @@ ExclusiveArch:  %{rust_arches}
 
 # Requires stable libgit2 1.7, and not the next minor soname change.
 # This needs to be consistent with the bindings in vendor/libgit2-sys.
-%global min_libgit2_version 1.7.2
-%global next_libgit2_version 1.8.0~
-%global bundled_libgit2_version 1.7.2
-%if 0%{?fedora} >= 39
+%global min_libgit2_version 1.8.1
+%global next_libgit2_version 1.9.0~
+%global bundled_libgit2_version 1.8.1
+%if 0%{?fedora} >= 42
 %bcond_with bundled_libgit2
 %else
 %bcond_without bundled_libgit2
@@ -155,10 +156,11 @@ Patch4:         0001-bootstrap-allow-disabling-target-self-contained.patch
 Patch5:         0002-set-an-external-library-path-for-wasm32-wasi.patch
 
 # We don't want to use the bundled library in libsqlite3-sys
-Patch6:         rustc-1.80.0-unbundle-sqlite.patch
+Patch6:         rustc-1.81.0-unbundle-sqlite.patch
 
-# Fix codegen test failure on big endian: https://github.com/rust-lang/rust/pull/126263
-Patch7:         0001-Make-issue-122805.rs-big-endian-compatible.patch
+# handle no_std targets on std builds
+# https://github.com/rust-lang/rust/pull/128182
+Patch7:         0001-handle-no_std-targets-on-std-builds.patch
 
 ### RHEL-specific patches below ###
 
@@ -169,7 +171,7 @@ Source102:      cargo_vendor.attr
 Source103:      cargo_vendor.prov
 
 # Disable cargo->libgit2->libssh2 on RHEL, as it's not approved for FIPS (rhbz1732949)
-Patch100:       rustc-1.80.0-disable-libssh2.patch
+Patch100:       rustc-1.81.0-disable-libssh2.patch
 
 # Get the Rust triple for any arch.
 %{lua: function rust_triple(arch)
@@ -329,6 +331,7 @@ Requires:       /usr/bin/cc
 # - wasm targets lost the archive index, which we were repairing with llvm-ranlib
 # - uefi targets couldn't link builtins like memcpy, possibly due to lost COMDAT flags
 %global __brp_strip_static_archive %{nil}
+%global __brp_strip_lto %{nil}
 
 %if %{without bundled_llvm}
 %if "%{llvm_root}" == "%{_prefix}" || 0%{?scl:1}
@@ -832,6 +835,8 @@ test -r "%{profiler}"
     %{!?llvm_has_filecheck: --disable-codegen-tests} \
     %{!?with_llvm_static: --enable-llvm-link-shared } } \
   --disable-llvm-static-stdcpp \
+  --disable-llvm-bitcode-linker \
+  --disable-lld \
   --disable-rpath \
   %{enable_debuginfo} \
   %{enable_rust_opts} \

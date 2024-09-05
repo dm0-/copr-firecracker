@@ -439,3 +439,5 @@
 /wasi-libc-wasi-sdk-22.tar.gz
 /rustc-1.80.0-src.tar.xz
 /rustc-1.80.1-src.tar.xz
+/wasi-libc-3f43ea9abb24ed8d24d760989e1d87ea385f8eaa.tar.gz
+/rustc-1.81.0-src.tar.xz
