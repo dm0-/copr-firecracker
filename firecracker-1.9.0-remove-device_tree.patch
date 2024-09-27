@@ -9,11 +9,11 @@ warnings, and it is only used for two aarch64 tests.
  [dev-dependencies]
 -device_tree = "1.1.0"
  itertools = "0.13.0"
- proptest = { version = "1.0.0", default-features = false, features = ["std"] }
+ proptest = { version = "1.5.0", default-features = false, features = ["std"] }
  
 --- a/src/vmm/src/arch/aarch64/fdt.rs
 +++ b/src/vmm/src/arch/aarch64/fdt.rs
-@@ -497,6 +497,7 @@
+@@ -550,6 +550,7 @@
      }
  
      #[test]
@@ -21,7 +21,7 @@ warnings, and it is only used for two aarch64 tests.
      fn test_create_fdt() {
          let mem = arch_mem(layout::FDT_MAX_SIZE + 0x1000);
          let kvm = Kvm::new().unwrap();
-@@ -553,6 +554,7 @@
+@@ -607,6 +608,7 @@
      }
  
      #[test]

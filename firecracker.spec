@@ -11,8 +11,8 @@
 %bcond jailer   %{lua:print(rpm.expand("%{?cargo_target}"):find("musl") or 0)}
 
 Name:           firecracker
-Version:        1.8.0
-Release:        2%{?dist}
+Version:        1.9.0
+Release:        1%{?dist}
 
 Summary:        Secure and fast microVMs for serverless computing
 SourceLicense:  Apache-2.0
@@ -26,10 +26,9 @@ Source1:        https://github.com/firecracker-microvm/micro-http/archive/ef43ce
 Provides:       bundled(crate(micro_http)) = 0.1.0^gitef43cef
 
 # Edit crate dependencies to track what is packaged in Fedora.
-Patch:          %{name}-1.8.0-remove-aws-lc-rs.patch
-Patch:          %{name}-1.8.0-remove-cargo_toml.patch
-Patch:          %{name}-1.8.0-remove-criterion.patch
-Patch:          %{name}-1.8.0-remove-device_tree.patch
+Patch:          %{name}-1.9.0-remove-aws-lc-rs.patch
+Patch:          %{name}-1.9.0-remove-criterion.patch
+Patch:          %{name}-1.9.0-remove-device_tree.patch
 
 BuildRequires:  cargo-rpm-macros >= 24
 %if %{defined cargo_target}
@@ -97,6 +96,9 @@ done
 
 
 %changelog
+* Mon Sep 02 2024 David Michael <fedora.dm0@gmail.com> - 1.9.0-1
+- Update to the 1.9.0 release.
+
 * Wed Jul 17 2024 Fedora Release Engineering <releng@fedoraproject.org> - 1.8.0-2
 - Rebuilt for https://fedoraproject.org/wiki/Fedora_41_Mass_Rebuild
 
