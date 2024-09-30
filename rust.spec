@@ -162,6 +162,9 @@ Patch6:         rustc-1.81.0-unbundle-sqlite.patch
 # https://github.com/rust-lang/rust/pull/128182
 Patch7:         0001-handle-no_std-targets-on-std-builds.patch
 
+# https://github.com/rust-lang/rust/pull/130960
+Patch8:         0001-Only-add-an-automatic-SONAME-for-Rust-dylibs.patch
+
 ### RHEL-specific patches below ###
 
 # Simple rpm macros for rust-toolset (as opposed to full rust-packaging)
@@ -666,6 +669,7 @@ rm -rf %{wasi_libc_dir}/dlmalloc/
 %patch -P6 -p1
 %endif
 %patch -P7 -p1
+%patch -P8 -p1
 
 %if %with disabled_libssh2
 %patch -P100 -p1
