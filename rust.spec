@@ -1006,9 +1006,12 @@ rm -rf "$TMP_HELLO"
 # The results are not stable on koji, so mask errors and just log it.
 # Some of the larger test artifacts are manually cleaned to save space.
 
-# Bootstrap is excluded because it's not something we ship, and a lot of its
-# tests are geared toward the upstream CI environment.
-%{__x} test --no-fail-fast --skip src/bootstrap || :
+# - Bootstrap is excluded because it's not something we ship, and a lot of its
+#   tests are geared toward the upstream CI environment.
+# - Crashes are excluded because they are less reliable, especially stuff like
+#   SIGSEGV across different arches -- UB can do all kinds of weird things.
+#   They're only meant to notice "accidental" fixes anyway, not *should* crash.
+%{__x} test --no-fail-fast --skip={src/bootstrap,tests/crashes} || :
 rm -rf "./build/%{rust_triple}/test/"
 
 %ifarch aarch64
