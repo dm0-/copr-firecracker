@@ -55,8 +55,8 @@ ExclusiveArch:  %{rust_arches}
 # We need CRT files for *-wasi targets, at least as new as the commit in
 # src/ci/docker/host-x86_64/dist-various-2/build-wasi-toolchain.sh
 %global wasi_libc_url https://github.com/WebAssembly/wasi-libc
-#global wasi_libc_ref wasi-sdk-23
-%global wasi_libc_ref 3f43ea9abb24ed8d24d760989e1d87ea385f8eaa
+#global wasi_libc_ref wasi-sdk-24
+%global wasi_libc_ref b9ef79d7dbd47c6c5bafdae760823467c2f60b70
 %global wasi_libc_name wasi-libc-%{wasi_libc_ref}
 %global wasi_libc_source %{wasi_libc_url}/archive/%{wasi_libc_ref}/%{wasi_libc_name}.tar.gz
 %global wasi_libc_dir %{_builddir}/%{wasi_libc_name}
