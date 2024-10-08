@@ -572,6 +572,9 @@ A tool for formatting Rust code according to style guidelines.
 %package analyzer
 Summary:        Rust implementation of the Language Server Protocol
 
+# /usr/bin/rust-analyzer is dynamically linked against internal rustc libs
+Requires:       %{name}%{?_isa} = %{version}-%{release}
+
 # The standard library sources are needed for most functionality.
 Recommends:     %{name}-src
 
