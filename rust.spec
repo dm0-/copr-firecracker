@@ -46,6 +46,9 @@ ExclusiveArch:  %{rust_arches}
 %if 0%{?fedora}
 %global extra_targets aarch64-unknown-none-softfloat aarch64-unknown-uefi
 %endif
+%if 0%{?rhel} >= 10
+%global extra_targets aarch64-unknown-none-softfloat
+%endif
 %endif
 %global all_targets %{?mingw_targets} %{?wasm_targets} %{?extra_targets}
 %define target_enabled() %{lua:
