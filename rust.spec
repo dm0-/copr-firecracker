@@ -1,5 +1,5 @@
 Name:           rust
-Version:        1.81.0
+Version:        1.82.0
 Release:        %autorelease
 Summary:        The Rust Programming Language
 License:        (Apache-2.0 OR MIT) AND (Artistic-2.0 AND BSD-3-Clause AND ISC AND MIT AND MPL-2.0 AND Unicode-DFS-2016)
@@ -14,9 +14,9 @@ ExclusiveArch:  %{rust_arches}
 # To bootstrap from scratch, set the channel and date from src/stage0.json
 # e.g. 1.59.0 wants rustc: 1.58.0-2022-01-13
 # or nightly wants some beta-YYYY-MM-DD
-%global bootstrap_version 1.80.1
-%global bootstrap_channel 1.80.1
-%global bootstrap_date 2024-08-08
+%global bootstrap_version 1.81.0
+%global bootstrap_channel 1.81.0
+%global bootstrap_date 2024-09-05
 
 # Only the specified arches will use bootstrap binaries.
 # NOTE: Those binaries used to be uploaded with every new release, but that was
@@ -75,17 +75,17 @@ ExclusiveArch:  %{rust_arches}
 # We can also choose to just use Rust's bundled LLVM, in case the system LLVM
 # is insufficient.  Rust currently requires LLVM 17.0+.
 %global min_llvm_version 17.0.0
-%global bundled_llvm_version 18.1.7
+%global bundled_llvm_version 19.1.1
 #global llvm_compat_version 17
 %global llvm llvm%{?llvm_compat_version}
 %bcond_with bundled_llvm
 
-# Requires stable libgit2 1.7, and not the next minor soname change.
+# Requires stable libgit2 1.8, and not the next minor soname change.
 # This needs to be consistent with the bindings in vendor/libgit2-sys.
 %global min_libgit2_version 1.8.1
 %global next_libgit2_version 1.9.0~
 %global bundled_libgit2_version 1.8.1
-%if 0%{?fedora} >= 42
+%if 0%{?fedora} >= 41
 %bcond_with bundled_libgit2
 %else
 %bcond_without bundled_libgit2
@@ -93,7 +93,7 @@ ExclusiveArch:  %{rust_arches}
 
 # Cargo uses UPSERTs with omitted conflict targets
 %global min_sqlite3_version 3.35
-%global bundled_sqlite3_version 3.45.0
+%global bundled_sqlite3_version 3.46.0
 %if 0%{?rhel} && 0%{?rhel} < 10
 %bcond_without bundled_sqlite3
 %else
@@ -159,17 +159,10 @@ Patch4:         0001-bootstrap-allow-disabling-target-self-contained.patch
 Patch5:         0002-set-an-external-library-path-for-wasm32-wasi.patch
 
 # We don't want to use the bundled library in libsqlite3-sys
-Patch6:         rustc-1.81.0-unbundle-sqlite.patch
+Patch6:         rustc-1.82.0-unbundle-sqlite.patch
 
-# handle no_std targets on std builds
-# https://github.com/rust-lang/rust/pull/128182
-Patch7:         0001-handle-no_std-targets-on-std-builds.patch
-
-# https://github.com/rust-lang/rust/pull/130960
-Patch8:         0001-Only-add-an-automatic-SONAME-for-Rust-dylibs.patch
-
-# https://github.com/rust-lang/rust/pull/127513
-Patch9:         rustc-1.81.0-Update-to-LLVM-19.patch
+# https://github.com/rust-lang/rust/pull/130034
+Patch7:         0001-Fix-enabling-wasm-component-ld-to-match-other-tools.patch
 
 ### RHEL-specific patches below ###
 
@@ -180,7 +173,7 @@ Source102:      cargo_vendor.attr
 Source103:      cargo_vendor.prov
 
 # Disable cargo->libgit2->libssh2 on RHEL, as it's not approved for FIPS (rhbz1732949)
-Patch100:       rustc-1.81.0-disable-libssh2.patch
+Patch100:       rustc-1.82.0-disable-libssh2.patch
 
 # Get the Rust triple for any arch.
 %{lua: function rust_triple(arch)
@@ -678,8 +671,6 @@ rm -rf %{wasi_libc_dir}/dlmalloc/
 %patch -P6 -p1
 %endif
 %patch -P7 -p1
-%patch -P8 -p1
-%patch -P9 -p1
 
 %if %with disabled_libssh2
 %patch -P100 -p1
@@ -775,9 +766,9 @@ end}
 %{export_rust_env}
 
 # Some builders have relatively little memory for their CPU count.
-# At least 2GB per CPU is a good rule of thumb for building rustc.
+# At least 4GB per CPU is a good rule of thumb for building rustc.
 ncpus=$(/usr/bin/getconf _NPROCESSORS_ONLN)
-max_cpus=$(( ($(free -g | awk '/^Mem:/{print $2}') + 1) / 2 ))
+max_cpus=$(( ($(free -g | awk '/^Mem:/{print $2}') + 1) / 4 ))
 if [ "$max_cpus" -ge 1 -a "$max_cpus" -lt "$ncpus" ]; then
   ncpus="$max_cpus"
 fi

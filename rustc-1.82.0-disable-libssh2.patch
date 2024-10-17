@@ -1,7 +1,7 @@
 diff -up rustc-beta-src/src/tools/cargo/Cargo.lock.orig rustc-beta-src/src/tools/cargo/Cargo.lock
---- rustc-beta-src/src/tools/cargo/Cargo.lock.orig	2024-08-26 09:03:52.769956890 -0700
-+++ rustc-beta-src/src/tools/cargo/Cargo.lock	2024-08-26 09:03:52.773956573 -0700
-@@ -2155,7 +2155,6 @@ checksum = "10472326a8a6477c3c20a64547b0
+--- rustc-beta-src/src/tools/cargo/Cargo.lock.orig	2024-09-06 10:36:55.743405666 -0700
++++ rustc-beta-src/src/tools/cargo/Cargo.lock	2024-09-06 10:36:55.745405652 -0700
+@@ -2156,7 +2156,6 @@ checksum = "10472326a8a6477c3c20a64547b0
  dependencies = [
   "cc",
   "libc",
@@ -9,7 +9,7 @@ diff -up rustc-beta-src/src/tools/cargo/Cargo.lock.orig rustc-beta-src/src/tools
   "libz-sys",
   "openssl-sys",
   "pkg-config",
-@@ -2196,20 +2195,6 @@ dependencies = [
+@@ -2197,20 +2196,6 @@ dependencies = [
   "pkg-config",
   "vcpkg",
  ]
@@ -31,10 +31,10 @@ diff -up rustc-beta-src/src/tools/cargo/Cargo.lock.orig rustc-beta-src/src/tools
  [[package]]
  name = "libz-sys"
 diff -up rustc-beta-src/src/tools/cargo/Cargo.toml.orig rustc-beta-src/src/tools/cargo/Cargo.toml
---- rustc-beta-src/src/tools/cargo/Cargo.toml.orig	2024-08-26 09:03:52.773956573 -0700
-+++ rustc-beta-src/src/tools/cargo/Cargo.toml	2024-08-26 09:05:08.595934397 -0700
+--- rustc-beta-src/src/tools/cargo/Cargo.toml.orig	2024-09-06 10:36:55.746405645 -0700
++++ rustc-beta-src/src/tools/cargo/Cargo.toml	2024-09-06 10:37:13.849280464 -0700
 @@ -44,7 +44,7 @@ curl = "0.4.46"
- curl-sys = "0.4.72"
+ curl-sys = "0.4.73"
  filetime = "0.2.23"
  flate2 = { version = "1.0.30", default-features = false, features = ["zlib"] }
 -git2 = "0.19.0"
