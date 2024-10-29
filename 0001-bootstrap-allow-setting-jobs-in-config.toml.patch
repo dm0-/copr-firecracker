@@ -1,0 +1,163 @@
+From 5d3e8210feabae1d80a9f21c18c9173b1fdc43ca Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?=E8=AE=B8=E6=9D=B0=E5=8F=8B=20Jieyou=20Xu=20=28Joe=29?=
+ <39484203+jieyouxu@users.noreply.github.com>
+Date: Thu, 17 Oct 2024 22:58:45 +0800
+Subject: [PATCH] bootstrap: allow setting `--jobs` in config.toml
+
+(cherry picked from commit 65458aed68fe6786068bab00e5a46d7ecdd2a072)
+---
+ config.example.toml                       |  5 ++
+ src/bootstrap/src/core/config/config.rs   |  5 +-
+ src/bootstrap/src/core/config/flags.rs    |  3 +-
+ src/bootstrap/src/core/config/tests.rs    | 58 +++++++++++++++++++++++
+ src/bootstrap/src/utils/change_tracker.rs |  5 ++
+ 5 files changed, 73 insertions(+), 3 deletions(-)
+
+diff --git a/config.example.toml b/config.example.toml
+index f1dc32234ccf..40c7ac9f5023 100644
+--- a/config.example.toml
++++ b/config.example.toml
+@@ -401,6 +401,11 @@
+ # Specify the location of the Android NDK. Used when targeting Android.
+ #android-ndk = "/path/to/android-ndk-r26d"
+ 
++# Number of parallel jobs to be used for building and testing. If set to `0` or
++# omitted, it will be automatically determined. This is the `-j`/`--jobs` flag
++# passed to cargo invocations.
++#jobs = 0
++
+ # =============================================================================
+ # General install configuration options
+ # =============================================================================
+diff --git a/src/bootstrap/src/core/config/config.rs b/src/bootstrap/src/core/config/config.rs
+index bdfee55d8d18..c1e0f8c6b338 100644
+--- a/src/bootstrap/src/core/config/config.rs
++++ b/src/bootstrap/src/core/config/config.rs
+@@ -872,6 +872,7 @@ struct Build {
+         metrics: Option<bool> = "metrics",
+         android_ndk: Option<PathBuf> = "android-ndk",
+         optimized_compiler_builtins: Option<bool> = "optimized-compiler-builtins",
++        jobs: Option<u32> = "jobs",
+     }
+ }
+ 
+@@ -1256,7 +1257,6 @@ pub(crate) fn parse_inner(
+         config.rustc_error_format = flags.rustc_error_format;
+         config.json_output = flags.json_output;
+         config.on_fail = flags.on_fail;
+-        config.jobs = Some(threads_from_config(flags.jobs as u32));
+         config.cmd = flags.cmd;
+         config.incremental = flags.incremental;
+         config.dry_run = if flags.dry_run { DryRun::UserSelected } else { DryRun::Disabled };
+@@ -1477,8 +1477,11 @@ fn get_table(option: &str) -> Result<TomlConfig, toml::de::Error> {
+             metrics: _,
+             android_ndk,
+             optimized_compiler_builtins,
++            jobs,
+         } = toml.build.unwrap_or_default();
+ 
++        config.jobs = Some(threads_from_config(flags.jobs.unwrap_or(jobs.unwrap_or(0))));
++
+         if let Some(file_build) = build {
+             config.build = TargetSelection::from_user(&file_build);
+         };
+diff --git a/src/bootstrap/src/core/config/flags.rs b/src/bootstrap/src/core/config/flags.rs
+index c3f174028149..7fdd5f8b8cae 100644
+--- a/src/bootstrap/src/core/config/flags.rs
++++ b/src/bootstrap/src/core/config/flags.rs
+@@ -110,11 +110,10 @@ pub struct Flags {
+         short,
+         long,
+         value_hint = clap::ValueHint::Other,
+-        default_value_t = std::thread::available_parallelism().map_or(1, std::num::NonZeroUsize::get),
+         value_name = "JOBS"
+     )]
+     /// number of jobs to run in parallel
+-    pub jobs: usize,
++    pub jobs: Option<u32>,
+     // This overrides the deny-warnings configuration option,
+     // which passes -Dwarnings to the compiler invocations.
+     #[arg(global = true, long)]
+diff --git a/src/bootstrap/src/core/config/tests.rs b/src/bootstrap/src/core/config/tests.rs
+index 219c5a6ec914..bc49074fa316 100644
+--- a/src/bootstrap/src/core/config/tests.rs
++++ b/src/bootstrap/src/core/config/tests.rs
+@@ -317,3 +317,61 @@ fn order_of_clippy_rules() {
+ 
+     assert_eq!(expected, actual);
+ }
++
++#[test]
++fn parse_jobs() {
++    assert_eq!(parse("build.jobs = 1").jobs, Some(1));
++}
++
++#[test]
++fn jobs_precedence() {
++    // `--jobs` should take precedence over using `--set build.jobs`.
++
++    let config = Config::parse_inner(
++        Flags::parse(&[
++            "check".to_owned(),
++            "--config=/does/not/exist".to_owned(),
++            "--jobs=67890".to_owned(),
++            "--set=build.jobs=12345".to_owned(),
++        ]),
++        |&_| toml::from_str(""),
++    );
++    assert_eq!(config.jobs, Some(67890));
++
++    // `--set build.jobs` should take precedence over `config.toml`.
++    let config = Config::parse_inner(
++        Flags::parse(&[
++            "check".to_owned(),
++            "--config=/does/not/exist".to_owned(),
++            "--set=build.jobs=12345".to_owned(),
++        ]),
++        |&_| {
++            toml::from_str(
++                r#"
++            [build]
++            jobs = 67890
++        "#,
++            )
++        },
++    );
++    assert_eq!(config.jobs, Some(12345));
++
++    // `--jobs` > `--set build.jobs` > `config.toml`
++    let config = Config::parse_inner(
++        Flags::parse(&[
++            "check".to_owned(),
++            "--jobs=123".to_owned(),
++            "--config=/does/not/exist".to_owned(),
++            "--set=build.jobs=456".to_owned(),
++        ]),
++        |&_| {
++            toml::from_str(
++                r#"
++            [build]
++            jobs = 789
++        "#,
++            )
++        },
++    );
++    assert_eq!(config.jobs, Some(123));
++}
+diff --git a/src/bootstrap/src/utils/change_tracker.rs b/src/bootstrap/src/utils/change_tracker.rs
+index 51a25104e4cf..1f6a1064a5dc 100644
+--- a/src/bootstrap/src/utils/change_tracker.rs
++++ b/src/bootstrap/src/utils/change_tracker.rs
+@@ -235,4 +235,9 @@ pub fn human_readable_changes(changes: &[ChangeInfo]) -> String {
+         severity: ChangeSeverity::Info,
+         summary: "The `build.profiler` option now tries to use source code from `download-ci-llvm` if possible, instead of checking out the `src/llvm-project` submodule.",
+     },
++    ChangeInfo {
++        change_id: 131838,
++        severity: ChangeSeverity::Info,
++        summary: "Allow setting `--jobs` in config.toml with `build.jobs`.",
++    },
+ ];
+-- 
+2.47.0
+

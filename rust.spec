@@ -164,6 +164,9 @@ Patch6:         rustc-1.82.0-unbundle-sqlite.patch
 # https://github.com/rust-lang/rust/pull/130034
 Patch7:         0001-Fix-enabling-wasm-component-ld-to-match-other-tools.patch
 
+# https://github.com/rust-lang/rust/pull/131838
+Patch8:         0001-bootstrap-allow-setting-jobs-in-config.toml.patch
+
 ### RHEL-specific patches below ###
 
 # Simple rpm macros for rust-toolset (as opposed to full rust-packaging)
@@ -671,6 +674,7 @@ rm -rf %{wasi_libc_dir}/dlmalloc/
 %patch -P6 -p1
 %endif
 %patch -P7 -p1
+%patch -P8 -p1
 
 %if %with disabled_libssh2
 %patch -P100 -p1
@@ -767,11 +771,22 @@ end}
 
 # Some builders have relatively little memory for their CPU count.
 # At least 4GB per CPU is a good rule of thumb for building rustc.
-ncpus=$(/usr/bin/getconf _NPROCESSORS_ONLN)
-max_cpus=$(( ($(free -g | awk '/^Mem:/{print $2}') + 1) / 4 ))
-if [ "$max_cpus" -ge 1 -a "$max_cpus" -lt "$ncpus" ]; then
-  ncpus="$max_cpus"
-fi
+%if ! %defined constrain_build
+%define constrain_build(m:) %{lua:
+  for l in io.lines('/proc/meminfo') do
+    if l:sub(1, 9) == "MemTotal:" then
+      local opt_m = math.tointeger(rpm.expand("%{-m*}"))
+      local mem_total = math.tointeger(string.match(l, "MemTotal:%s+(%d+)"))
+      local cpu_limit = math.max(1, mem_total // (opt_m * 1024))
+      if cpu_limit < math.tointeger(rpm.expand("%_smp_build_ncpus")) then
+        rpm.define("_smp_build_ncpus " .. cpu_limit)
+      end
+      break
+    end
+  end
+}
+%endif
+%constrain_build -m 4096
 
 %if %defined mingw_targets
 %define mingw_target_config %{shrink:
@@ -845,6 +860,7 @@ test -r "%{profiler}"
   --disable-rpath \
   %{enable_debuginfo} \
   %{enable_rust_opts} \
+  --set build.jobs=%_smp_build_ncpus \
   --set build.build-stage=2 \
   --set build.doc-stage=2 \
   --set build.install-stage=2 \
@@ -864,7 +880,7 @@ test -r "%{profiler}"
 %define profraw $PWD/build/profiles
 %define profdata $PWD/build/rustc.profdata
 mkdir -p "%{profraw}"
-%{__x} build -j "$ncpus" sysroot --rust-profile-generate="%{profraw}"
+%{__x} build sysroot --rust-profile-generate="%{profraw}"
 # Build cargo as a workload to generate compiler profiles
 env LLVM_PROFILE_FILE="%{profraw}/default_%%m_%%p.profraw" \
   %{__x} --keep-stage=0 --keep-stage=1 build cargo
@@ -876,7 +892,7 @@ rm -r "%{profraw}" build/%{rust_triple}/stage2*/
 %endif
 
 # Build the compiler normally (with or without PGO)
-%{__x} build -j "$ncpus" sysroot
+%{__x} build sysroot
 
 # Build everything else normally
 %{__x} build
