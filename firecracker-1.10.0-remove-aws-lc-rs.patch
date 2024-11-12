@@ -11,7 +11,7 @@ switch to that in the future.
 
 --- a/resources/seccomp/aarch64-unknown-linux-musl.json
 +++ b/resources/seccomp/aarch64-unknown-linux-musl.json
-@@ -74,10 +74,6 @@
+@@ -78,10 +78,6 @@
                  "syscall": "fstat",
                  "comment": "Used for drive patching & rescanning, for reading the local timezone from /etc/localtime"
              },
@@ -22,7 +22,7 @@ switch to that in the future.
              {
                  "syscall": "ftruncate",
                  "comment": "Used for snapshotting"
-@@ -112,7 +108,7 @@
+@@ -116,7 +112,7 @@
              },
              {
                "syscall": "getrandom",
@@ -31,7 +31,7 @@ switch to that in the future.
              },
              {
                  "syscall": "accept4",
-@@ -214,7 +210,16 @@
+@@ -218,7 +214,16 @@
              },
              {
                  "syscall": "madvise",
@@ -51,7 +51,7 @@ switch to that in the future.
                  "syscall": "mmap",
 --- a/resources/seccomp/x86_64-unknown-linux-musl.json
 +++ b/resources/seccomp/x86_64-unknown-linux-musl.json
-@@ -108,7 +108,7 @@
+@@ -112,7 +112,7 @@
              },
              {
                "syscall": "getrandom",
@@ -60,7 +60,7 @@ switch to that in the future.
              },
              {
                  "syscall": "accept4",
-@@ -210,7 +210,16 @@
+@@ -214,7 +214,16 @@
              },
              {
                  "syscall": "madvise",
@@ -80,11 +80,11 @@ switch to that in the future.
                  "syscall": "mmap",
 --- a/src/vmm/Cargo.toml
 +++ b/src/vmm/Cargo.toml
-@@ -11,7 +11,7 @@
- [dependencies]
+@@ -12,7 +12,7 @@
  acpi_tables = { path = "../acpi-tables" } 
  aes-gcm =  { version = "0.10.1", default-features = false, features = ["aes"] }
--aws-lc-rs = { version = "1.8.1", features = ["bindgen"] }
+ arrayvec = { version = "0.7.6", optional = true }
+-aws-lc-rs = { version = "1.10.0", features = ["bindgen"] }
 +rand = "0.8.5"
  base64 = "0.22.1"
  bincode = "1.2.1"
@@ -101,8 +101,8 @@ switch to that in the future.
 +use rand::rngs::OsRng;
 +use rand::RngCore;
  use serde::{Deserialize, Serialize};
- use utils::eventfd::EventFd;
  use vm_memory::{GuestAddress, GuestMemoryError};
+ use vm_superio::Trigger;
 @@ -45,7 +45,7 @@
      /// Error accessing VMGenID memory: {0}
      GuestMemory(#[from] GuestMemoryError),
@@ -133,22 +133,22 @@ switch to that in the future.
 -use aws_lc_rs::rand;
 +use rand::rngs::OsRng;
 +use rand::RngCore;
- use utils::eventfd::EventFd;
  use vm_memory::GuestMemoryError;
+ use vmm_sys_util::eventfd::EventFd;
  
-@@ -30,7 +31,7 @@
+@@ -31,7 +32,7 @@
      /// Bad guest memory buffer: {0}
      GuestMemory(#[from] GuestMemoryError),
      /// Could not get random bytes: {0}
 -    Random(#[from] aws_lc_rs::error::Unspecified),
 +    Random(#[from] rand::Error),
+     /// Underlying IovDeque error: {0}
+     IovDeque(#[from] IovDequeError),
  }
- 
- #[derive(Debug)]
-@@ -113,7 +114,7 @@
+@@ -119,7 +120,7 @@
          }
  
-         let mut rand_bytes = vec![0; iovec.len() as usize];
+         let mut rand_bytes = vec![0; self.buffer.len() as usize];
 -        rand::fill(&mut rand_bytes).map_err(|err| {
 +        OsRng.try_fill_bytes(&mut rand_bytes).map_err(|err| {
              METRICS.host_rng_fails.inc();
