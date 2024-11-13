@@ -8,7 +8,7 @@
 %bcond jailer   %{lua:print(rpm.expand("%{?cargo_target}"):find("musl") or 0)}
 
 Name:           firecracker
-Version:        1.10.0
+Version:        1.10.1
 Release:        1%{?dist}
 
 Summary:        Secure and fast microVMs for serverless computing
@@ -92,6 +92,9 @@ done
 
 
 %changelog
+* Wed Nov 13 2024 David Michael <fedora.dm0@gmail.com> - 1.10.1-1
+- Update to the 1.10.1 release.
+
 * Thu Nov 07 2024 David Michael <fedora.dm0@gmail.com> - 1.10.0-1
 - Update to the 1.10.0 release.
 
