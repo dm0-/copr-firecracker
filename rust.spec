@@ -25,36 +25,6 @@ ExclusiveArch:  %{rust_arches}
 # add them to sources. Remember to remove them again after the bootstrap build!
 #global bootstrap_arches %%{rust_arches}
 
-# Define a space-separated list of targets to ship rust-std-static-$triple for
-# cross-compilation. The packages are noarch, but they're not fully
-# reproducible between hosts, so only x86_64 actually builds it.
-%ifarch x86_64
-%if 0%{?fedora}
-%global mingw_targets i686-pc-windows-gnu x86_64-pc-windows-gnu
-%endif
-# NB: wasm32-wasi is being gradually replaced by wasm32-wasip1
-# https://blog.rust-lang.org/2024/04/09/updates-to-rusts-wasi-targets.html
-%global wasm_targets wasm32-unknown-unknown wasm32-wasi wasm32-wasip1
-%if 0%{?fedora}
-%global extra_targets x86_64-unknown-none x86_64-unknown-uefi
-%endif
-%if 0%{?rhel} >= 10
-%global extra_targets x86_64-unknown-none
-%endif
-%endif
-%ifarch aarch64
-%if 0%{?fedora}
-%global extra_targets aarch64-unknown-none-softfloat aarch64-unknown-uefi
-%endif
-%if 0%{?rhel} >= 10
-%global extra_targets aarch64-unknown-none-softfloat
-%endif
-%endif
-%global all_targets %{?mingw_targets} %{?wasm_targets} %{?extra_targets}
-%define target_enabled() %{lua:
-  print(string.find(rpm.expand(" %{all_targets} "), rpm.expand(" %1 "), 1, true) or 0)
-}
-
 # We need CRT files for *-wasi targets, at least as new as the commit in
 # src/ci/docker/host-x86_64/dist-various-2/build-wasi-toolchain.sh
 %global wasi_libc_url https://github.com/WebAssembly/wasi-libc
@@ -174,14 +144,12 @@ Source103:      cargo_vendor.prov
 # Disable cargo->libgit2->libssh2 on RHEL, as it's not approved for FIPS (rhbz1732949)
 Patch100:       rustc-1.82.0-disable-libssh2.patch
 
-# Get the Rust triple for any arch.
-%{lua: function rust_triple(arch)
-  local abi = "gnu"
+# Get the Rust triple for any architecture and ABI.
+%{lua: function rust_triple(arch, abi)
+  abi = abi or "gnu"
   if arch == "armv7hl" then
     arch = "armv7"
-    abi = "gnueabihf"
-  elseif arch == "ppc64" then
-    arch = "powerpc64"
+    abi = abi.."eabihf"
   elseif arch == "ppc64le" then
     arch = "powerpc64le"
   elseif arch == "riscv64" then
@@ -190,11 +158,44 @@ Patch100:       rustc-1.82.0-disable-libssh2.patch
   return arch.."-unknown-linux-"..abi
 end}
 
-%global rust_triple %{lua: print(rust_triple(rpm.expand("%{_target_cpu}")))}
+%define rust_triple() %{lua: print(rust_triple(
+  rpm.expand("%{?1}%{!?1:%{_target_cpu}}"),
+  rpm.expand("%{?2}%{!?2:gnu}")
+))}
 
-# Get the environment form of the Rust triple
-%global rust_triple_env %{lua:
-  print(string.upper(string.gsub(rpm.expand("%{rust_triple}"), "-", "_")))
+# Get the environment variable form of the Rust triple.
+%define rust_triple_env() %{lua:
+  print(rpm.expand("%{rust_triple %*}"):gsub("-", "_"):upper())
+}
+
+# Define a space-separated list of targets to ship rust-std-static-$triple for
+# cross-compilation. The packages are noarch, but they're not fully
+# reproducible between hosts, so only x86_64 actually builds it.
+%ifarch x86_64
+%if 0%{?fedora}
+%global mingw_targets i686-pc-windows-gnu x86_64-pc-windows-gnu
+%endif
+# NB: wasm32-wasi is being gradually replaced by wasm32-wasip1
+# https://blog.rust-lang.org/2024/04/09/updates-to-rusts-wasi-targets.html
+%global wasm_targets wasm32-unknown-unknown wasm32-wasi wasm32-wasip1
+%if 0%{?fedora}
+%global extra_targets x86_64-unknown-none x86_64-unknown-uefi
+%endif
+%if 0%{?rhel} >= 10
+%global extra_targets x86_64-unknown-none
+%endif
+%endif
+%ifarch aarch64
+%if 0%{?fedora}
+%global extra_targets aarch64-unknown-none-softfloat aarch64-unknown-uefi
+%endif
+%if 0%{?rhel} >= 10
+%global extra_targets aarch64-unknown-none-softfloat
+%endif
+%endif
+%global all_targets %{?mingw_targets} %{?wasm_targets} %{?extra_targets}
+%define target_enabled() %{lua:
+  print(string.find(rpm.expand(" %{all_targets} "), rpm.expand(" %1 "), 1, true) or 0)
 }
 
 %if %defined bootstrap_arches
