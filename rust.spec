@@ -229,7 +229,7 @@ end}
 %global local_rust_root %{_builddir}/rust-%{bootstrap_suffix}
 Provides:       bundled(%{name}-bootstrap) = %{bootstrap_version}
 %else
-BuildRequires:  cargo >= %{bootstrap_version}
+BuildRequires:  (cargo >= %{bootstrap_version} with cargo <= %{version})
 BuildRequires:  (%{name} >= %{bootstrap_version} with %{name} <= %{version})
 %global local_rust_root %{_prefix}
 %endif
