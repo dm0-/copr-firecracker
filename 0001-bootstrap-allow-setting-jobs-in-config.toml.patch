@@ -1,10 +1,9 @@
-From 5d3e8210feabae1d80a9f21c18c9173b1fdc43ca Mon Sep 17 00:00:00 2001
+From 65458aed68fe6786068bab00e5a46d7ecdd2a072 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?=E8=AE=B8=E6=9D=B0=E5=8F=8B=20Jieyou=20Xu=20=28Joe=29?=
  <39484203+jieyouxu@users.noreply.github.com>
 Date: Thu, 17 Oct 2024 22:58:45 +0800
 Subject: [PATCH] bootstrap: allow setting `--jobs` in config.toml
 
-(cherry picked from commit 65458aed68fe6786068bab00e5a46d7ecdd2a072)
 ---
  config.example.toml                       |  5 ++
  src/bootstrap/src/core/config/config.rs   |  5 +-
@@ -14,10 +13,10 @@ Subject: [PATCH] bootstrap: allow setting `--jobs` in config.toml
  5 files changed, 73 insertions(+), 3 deletions(-)
 
 diff --git a/config.example.toml b/config.example.toml
-index f1dc32234ccf..40c7ac9f5023 100644
+index 4b591b949b36..168ac353cff7 100644
 --- a/config.example.toml
 +++ b/config.example.toml
-@@ -401,6 +401,11 @@
+@@ -414,6 +414,11 @@
  # Specify the location of the Android NDK. Used when targeting Android.
  #android-ndk = "/path/to/android-ndk-r26d"
  
@@ -30,10 +29,10 @@ index f1dc32234ccf..40c7ac9f5023 100644
  # General install configuration options
  # =============================================================================
 diff --git a/src/bootstrap/src/core/config/config.rs b/src/bootstrap/src/core/config/config.rs
-index bdfee55d8d18..c1e0f8c6b338 100644
+index c2ab439891ea..aeb81b146382 100644
 --- a/src/bootstrap/src/core/config/config.rs
 +++ b/src/bootstrap/src/core/config/config.rs
-@@ -872,6 +872,7 @@ struct Build {
+@@ -891,6 +891,7 @@ struct Build {
          metrics: Option<bool> = "metrics",
          android_ndk: Option<PathBuf> = "android-ndk",
          optimized_compiler_builtins: Option<bool> = "optimized-compiler-builtins",
@@ -41,7 +40,7 @@ index bdfee55d8d18..c1e0f8c6b338 100644
      }
  }
  
-@@ -1256,7 +1257,6 @@ pub(crate) fn parse_inner(
+@@ -1289,7 +1290,6 @@ pub(crate) fn parse_inner(
          config.rustc_error_format = flags.rustc_error_format;
          config.json_output = flags.json_output;
          config.on_fail = flags.on_fail;
@@ -49,7 +48,7 @@ index bdfee55d8d18..c1e0f8c6b338 100644
          config.cmd = flags.cmd;
          config.incremental = flags.incremental;
          config.dry_run = if flags.dry_run { DryRun::UserSelected } else { DryRun::Disabled };
-@@ -1477,8 +1477,11 @@ fn get_table(option: &str) -> Result<TomlConfig, toml::de::Error> {
+@@ -1511,8 +1511,11 @@ fn get_table(option: &str) -> Result<TomlConfig, toml::de::Error> {
              metrics: _,
              android_ndk,
              optimized_compiler_builtins,
@@ -62,7 +61,7 @@ index bdfee55d8d18..c1e0f8c6b338 100644
              config.build = TargetSelection::from_user(&file_build);
          };
 diff --git a/src/bootstrap/src/core/config/flags.rs b/src/bootstrap/src/core/config/flags.rs
-index c3f174028149..7fdd5f8b8cae 100644
+index 3aefe517a5be..bfeb811508c0 100644
 --- a/src/bootstrap/src/core/config/flags.rs
 +++ b/src/bootstrap/src/core/config/flags.rs
 @@ -110,11 +110,10 @@ pub struct Flags {
@@ -79,12 +78,12 @@ index c3f174028149..7fdd5f8b8cae 100644
      // which passes -Dwarnings to the compiler invocations.
      #[arg(global = true, long)]
 diff --git a/src/bootstrap/src/core/config/tests.rs b/src/bootstrap/src/core/config/tests.rs
-index 219c5a6ec914..bc49074fa316 100644
+index 2611b6cf51bb..1f02757682c2 100644
 --- a/src/bootstrap/src/core/config/tests.rs
 +++ b/src/bootstrap/src/core/config/tests.rs
-@@ -317,3 +317,61 @@ fn order_of_clippy_rules() {
- 
-     assert_eq!(expected, actual);
+@@ -352,3 +352,61 @@ fn parse_rust_std_features_empty() {
+ fn parse_rust_std_features_invalid() {
+     parse("rust.std-features = \"backtrace\"");
  }
 +
 +#[test]
@@ -145,12 +144,12 @@ index 219c5a6ec914..bc49074fa316 100644
 +    assert_eq!(config.jobs, Some(123));
 +}
 diff --git a/src/bootstrap/src/utils/change_tracker.rs b/src/bootstrap/src/utils/change_tracker.rs
-index 51a25104e4cf..1f6a1064a5dc 100644
+index b37786496cb5..9169bc90a45d 100644
 --- a/src/bootstrap/src/utils/change_tracker.rs
 +++ b/src/bootstrap/src/utils/change_tracker.rs
-@@ -235,4 +235,9 @@ pub fn human_readable_changes(changes: &[ChangeInfo]) -> String {
+@@ -275,4 +275,9 @@ pub fn human_readable_changes(changes: &[ChangeInfo]) -> String {
          severity: ChangeSeverity::Info,
-         summary: "The `build.profiler` option now tries to use source code from `download-ci-llvm` if possible, instead of checking out the `src/llvm-project` submodule.",
+         summary: "New option `./x setup editor` added, replacing `./x setup vscode` and adding support for vim, emacs and helix.",
      },
 +    ChangeInfo {
 +        change_id: 131838,
