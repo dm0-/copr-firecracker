@@ -1,6 +1,6 @@
 Name:           rust
 Version:        1.83.0
-Release:        %autorelease
+Release:        3
 Summary:        The Rust Programming Language
 License:        (Apache-2.0 OR MIT) AND (Artistic-2.0 AND BSD-3-Clause AND ISC AND MIT AND MPL-2.0 AND Unicode-DFS-2016)
 # ^ written as: (rust itself) and (bundled libraries)
@@ -31,6 +31,7 @@ ExclusiveArch:  %{rust_arches}
 %ifarch x86_64
 %if 0%{?fedora}
 %global mingw_targets i686-pc-windows-gnu x86_64-pc-windows-gnu
+%global musl_targets i686-unknown-linux-musl x86_64-unknown-linux-musl
 %endif
 # NB: wasm32-wasi is being gradually replaced by wasm32-wasip1
 # https://blog.rust-lang.org/2024/04/09/updates-to-rusts-wasi-targets.html
@@ -41,19 +42,26 @@ ExclusiveArch:  %{rust_arches}
 %if 0%{?rhel} >= 10
 %global extra_targets x86_64-unknown-none
 %endif
+%elif 0%{?fedora}
+%global musl_targets %{gsub %{_target_cpu} riscv64 riscv64gc}-unknown-linux-musl
 %endif
 %ifarch aarch64
-%if 0%{?fedora}
+%if 0%{!?musl_targets:%{?fedora}}
 %global extra_targets aarch64-unknown-none-softfloat aarch64-unknown-uefi
 %endif
 %if 0%{?rhel} >= 10
 %global extra_targets aarch64-unknown-none-softfloat
 %endif
 %endif
-%global all_targets %{?mingw_targets} %{?wasm_targets} %{?extra_targets}
+%global all_targets %{?mingw_targets} %{?musl_targets} %{?wasm_targets} %{?extra_targets}
 %define target_enabled() %{lua:
   print(string.find(rpm.expand(" %{all_targets} "), rpm.expand(" %1 "), 1, true) or 0)
 }
+
+# Use the self-contained musl by default, and build a static libunwind from the
+# bundled code since Fedora's RPM is incompatible (built against glibc).  This
+# condition is overloaded, and disabling it is not expected to work.
+%bcond_without bundled_musl_libc
 
 # We need CRT files for *-wasi targets, at least as new as the commit in
 # src/ci/docker/host-x86_64/dist-various-2/build-wasi-toolchain.sh
@@ -162,6 +170,9 @@ Patch6:         rustc-1.82.0-unbundle-sqlite.patch
 
 # https://github.com/rust-lang/rust/pull/131838
 Patch7:         0001-bootstrap-allow-setting-jobs-in-config.toml.patch
+
+# Adjust Fedora packaging flags as needed for a different libc.
+Patch99:        %{name}-1.83.0-fix-musl-bootstrap.patch
 
 ### RHEL-specific patches below ###
 
@@ -356,6 +367,13 @@ BuildRequires:  mingw32-winpthreads-static
 BuildRequires:  mingw64-winpthreads-static
 %endif
 
+%if %defined musl_targets
+%ifarch x86_64
+BuildRequires:  musl-libc-static(x86-32)
+%endif
+BuildRequires:  musl-libc-static%{?_isa}
+%endif
+
 %if %defined wasm_targets
 %if %with bundled_wasi_libc
 BuildRequires:  clang
@@ -420,6 +438,17 @@ Provides:       mingw64-rustc = %{version}-%{release}
 BuildArch:      noarch
 %target_description x86_64-pc-windows-gnu MinGW
 %endif
+
+%{lua: for target in rpm.expand("%{?musl_targets}"):gmatch("%S+") do
+  print(rpm.expand(string.gsub([[
+%target_package {{target}}
+%if %{without bundled_musl_libc}
+Requires:       musl-libc-static%[ "{{target}}" == "i686-unknown-linux-musl" ? "(x86-32)" : "%{?_isa}" ]
+%endif
+BuildArch:      noarch
+%target_description {{target}} musl
+]], "{{(%w+)}}", {target=target}) .. "\n"))
+end}
 
 %if %target_enabled wasm32-unknown-unknown
 %target_package wasm32-unknown-unknown
@@ -682,8 +711,16 @@ sed -i.try-python -e '/^try python3 /i try "%{__python3}" "$@"' ./configure
 sed -i.rust-src -e "s#@BUILDDIR@#$PWD#" ./src/etc/rust-gdb
 
 %if %without bundled_llvm
+%if %{defined musl_targets} && %{with bundled_musl_libc}
+%patch -P99 -p1
+mv -t . src/llvm-project/{compiler-rt,libunwind}
+rm -rf src/llvm-project
+mkdir -p src/llvm-project
+mv -t src/llvm-project compiler-rt libunwind
+%else
 rm -rf src/llvm-project/
 mkdir -p src/llvm-project/libunwind/
+%endif
 %endif
 
 
@@ -798,6 +835,20 @@ end}
 }
 %endif
 
+%if %defined musl_targets
+%{lua: do
+  local cfg = ""
+  for triple in rpm.expand("%{?musl_targets}"):gmatch("%S+") do
+    local arch = triple:sub(1, 4) == "i686" and "i386" or rpm.expand("%{_target_cpu}")
+    cfg = cfg .. " --set target." .. triple .. rpm.expand(".llvm-libunwind=%[ %{with bundled_musl_libc} ? \"in-tree\" : \"system\" ]")
+    cfg = cfg .. " --set target." .. triple .. rpm.expand(".musl-libdir=%{_musl_" .. arch .. "_libdir}")
+    cfg = cfg .. " --set target." .. triple .. rpm.expand(".musl-root=%{_musl_" .. arch .. "_sysroot}")
+    cfg = cfg .. " --set target." .. triple .. rpm.expand(".self-contained=%[ %{with bundled_musl_libc} ? \"true\" : \"false\" ]")
+  end
+  rpm.define("musl_target_config" .. cfg)
+end}
+%endif
+
 %if %defined wasm_targets
 %if %with bundled_wasi_libc
 %define wasi_libc_flags MALLOC_IMPL=emmalloc CC=clang AR=llvm-ar NM=llvm-nm
@@ -842,6 +893,7 @@ test -r "%{profiler}"
   --set target.%{rust_triple}.ranlib=%{__ranlib} \
   --set target.%{rust_triple}.profiler="%{profiler}" \
   %{?mingw_target_config} \
+  %{?musl_target_config} \
   %{?wasm_target_config} \
   --python=%{__python3} \
   --local-rust-root=%{local_rust_root} \
@@ -860,7 +912,7 @@ test -r "%{profiler}"
   --set build.doc-stage=2 \
   --set build.install-stage=2 \
   --set build.test-stage=2 \
-  --set build.optimized-compiler-builtins=false \
+  --set build.optimized-compiler-builtins=%[ "%{?musl_targets:%{_target_cpu}}" == "aarch64" ? "true" : "false" ] \
   --enable-extended \
   --tools=cargo,clippy,rls,rust-analyzer,rustfmt,src \
   --enable-vendor \
@@ -992,7 +1044,7 @@ TMP_HELLO=$(mktemp -d)
   test -r default_*.profraw
 
   # Try a build sanity-check for other std-enabled targets
-  for triple in %{?mingw_targets} %{?wasm_targets}; do
+  for triple in %{?mingw_targets} %{?musl_targets} %{?wasm_targets}; do
     %{buildroot}%{_bindir}/cargo build --verbose --target=$triple
   done
 )
@@ -1049,7 +1101,9 @@ rm -rf "./build/%{rust_triple}/stage2-tools/%{rust_triple}/cit/"
 %dir %{rustlibdir}          \
 %dir %{rustlibdir}/%1       \
 %dir %{rustlibdir}/%1/lib   \
-%{rustlibdir}/%1/lib/*.rlib
+%{rustlibdir}/%1/lib/*.rlib \
+%exclude %{rustlibdir}/%1/lib/*.so \
+%exclude %{common_libdir}/debug/%{rustlibdir}/%1/lib/*.so*.debug
 
 %if %target_enabled i686-pc-windows-gnu
 %target_files i686-pc-windows-gnu
@@ -1064,6 +1118,19 @@ rm -rf "./build/%{rust_triple}/stage2-tools/%{rust_triple}/cit/"
 %exclude %{rustlibdir}/x86_64-pc-windows-gnu/lib/*.dll
 %exclude %{rustlibdir}/x86_64-pc-windows-gnu/lib/*.dll.a
 %endif
+
+%{lua: for target in rpm.expand("%{?musl_targets}"):gmatch("%S+") do
+  print(rpm.expand(string.gsub([[
+%target_files {{target}}
+%if %with bundled_musl_libc
+%dir %{rustlibdir}/{{target}}/lib/self-contained
+%{rustlibdir}/{{target}}/lib/self-contained/*crt*.o
+%{rustlibdir}/{{target}}/lib/self-contained/libc.a
+%{rustlibdir}/{{target}}/lib/self-contained/libunwind.a
+%exclude %{rustlibdir}/{{target}}/lib/libunwind.a
+%endif
+]], "{{(%w+)}}", {target=target}) .. "\n"))
+end}
 
 %if %target_enabled wasm32-unknown-unknown
 %target_files wasm32-unknown-unknown
@@ -1180,4 +1247,5 @@ rm -rf "./build/%{rust_triple}/stage2-tools/%{rust_triple}/cit/"
 
 
 %changelog
-%autochangelog
+* Thu Dec 05 2024 David Michael <fedora.dm0@gmail.com> - 1.83.0-3
+- Build musl target subpackages.

@@ -1,0 +1,53 @@
+Define build flags to work with Fedora's musl sysroot, and work around section
+type conflict errors that prevent building with musl targets.
+
+--- a/src/bootstrap/src/core/build_steps/llvm.rs
++++ b/src/bootstrap/src/core/build_steps/llvm.rs
+@@ -1323,6 +1323,7 @@
+             .define("CRT_HAS_INITFINI_ARRAY", None)
+             .define("EH_USE_FRAME_REGISTRY", None);
+ 
++        set_musl_flags(&mut cfg, &self.target);
+         let objs = cfg.compile_intermediates();
+         assert_eq!(objs.len(), 2);
+         for obj in objs {
+@@ -1421,6 +1422,7 @@
+                 cfg.define("_LIBUNWIND_HIDE_SYMBOLS", "1");
+                 cfg.define("_LIBUNWIND_IS_NATIVE_ONLY", "1");
+             }
++            set_musl_flags(cfg, &self.target);
+         }
+ 
+         cc_cfg.compiler(builder.cc(self.target));
+@@ -1495,3 +1497,20 @@
+         out_dir
+     }
+ }
++
++fn set_musl_flags(cfg: &mut cc::Build, target: &TargetSelection) {
++    if !target.ends_with("-musl") {
++        return;
++    }
++
++    let mut arch = target.triple.split('-').next().unwrap();
++    if arch == "i686" {
++        arch = "i386";
++        cfg.flag("-m32");
++        cfg.flag("-fcf-protection=none");
++    } else if arch == "riscv64gc" {
++        arch = "riscv64";
++    }
++
++    cfg.flag(format!("--sysroot=/usr/{arch}-linux-musl").as_str());
++}
+--- a/src/llvm-project/compiler-rt/lib/builtins/crtend.c
++++ b/src/llvm-project/compiler-rt/lib/builtins/crtend.c
+@@ -9,7 +9,7 @@
+ #include <stdint.h>
+ 
+ // Put 4-byte zero which is the length field in FDE at the end as a terminator.
+-const int32_t __EH_FRAME_LIST_END__[]
++static int32_t __EH_FRAME_LIST_END__[]
+     __attribute__((section(".eh_frame"), aligned(sizeof(int32_t)),
+                    visibility("hidden"), used)) = {0};
+ 
