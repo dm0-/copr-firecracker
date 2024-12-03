@@ -929,19 +929,6 @@ find %{buildroot}%{common_libdir} -maxdepth 1 -type f -name '*.so' \
 find %{buildroot}%{_libdir} -maxdepth 1 -type f -name '*.so' \
   -exec chmod -v +x '{}' '+'
 
-# The libdir libraries are identical to those under rustlib/.  It's easier on
-# library loading if we keep them in libdir, but we do need them in rustlib/
-# to support dynamic linking for compiler plugins, so we'll symlink.
-find %{buildroot}%{rustlibdir}/%{rust_triple}/lib/ -maxdepth 1 -type f -name '*.so' |
-while read lib; do
- lib2="%{buildroot}%{_libdir}/${lib##*/}"
- if [ -f "$lib2" ]; then
-   # make sure they're actually identical!
-   cmp "$lib" "$lib2"
-   ln -v -f -r -s -T "$lib2" "$lib"
- fi
-done
-
 # Remove installer artifacts (manifests, uninstall scripts, etc.)
 find %{buildroot}%{rustlibdir} -maxdepth 1 -type f -exec rm -v '{}' '+'
 
@@ -1048,10 +1035,6 @@ rm -rf "./build/%{rust_triple}/stage2-tools/%{rust_triple}/cit/"
 %{_libexecdir}/rust-analyzer-proc-macro-srv
 %{_mandir}/man1/rustc.1*
 %{_mandir}/man1/rustdoc.1*
-%dir %{rustlibdir}
-%dir %{rustlibdir}/%{rust_triple}
-%dir %{rustlibdir}/%{rust_triple}/lib
-%{rustlibdir}/%{rust_triple}/lib/*.so
 
 
 %files std-static
@@ -1059,6 +1042,7 @@ rm -rf "./build/%{rust_triple}/stage2-tools/%{rust_triple}/cit/"
 %dir %{rustlibdir}/%{rust_triple}
 %dir %{rustlibdir}/%{rust_triple}/lib
 %{rustlibdir}/%{rust_triple}/lib/*.rlib
+%exclude %{rustlibdir}/%{rust_triple}/lib/*.so
 
 %global target_files()      \
 %files std-static-%1        \
