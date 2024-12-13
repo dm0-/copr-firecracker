@@ -22,3 +22,4 @@ unicode:
         - rustc-*-src/vendor/wast-*/tests/parse-fail/confusing-block-comment?.wat
         - rustc-*-src/vendor/wast-*/tests/parse-fail/confusing-line-comment?.wat
         - rustc-*-src/src/llvm-project/clang-tools-extra/docs/clang-tidy/checks/misc/misleading-bidirectional.rst
+        - rustc-*-src/src/gcc/gcc/testsuite/c-c++-common/*Wbidi*.c
