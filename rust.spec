@@ -687,6 +687,10 @@ rm -rf src/llvm-project/
 mkdir -p src/llvm-project/libunwind/
 %endif
 
+# Remove submodules we don't need.
+rm -rf src/gcc
+rm -rf src/tools/enzyme
+rm -rf src/tools/rustc-perf
 
 # Remove other unused vendored libraries. This leaves the directory in place,
 # because some build scripts watch them, e.g. "cargo:rerun-if-changed=curl".
