@@ -1,7 +1,7 @@
 diff -up rustc-beta-src/src/tools/cargo/Cargo.lock.orig rustc-beta-src/src/tools/cargo/Cargo.lock
---- rustc-beta-src/src/tools/cargo/Cargo.lock.orig	2024-09-06 10:36:55.743405666 -0700
-+++ rustc-beta-src/src/tools/cargo/Cargo.lock	2024-09-06 10:36:55.745405652 -0700
-@@ -2156,7 +2156,6 @@ checksum = "10472326a8a6477c3c20a64547b0
+--- rustc-beta-src/src/tools/cargo/Cargo.lock.orig	2024-12-12 14:07:10.755481543 -0800
++++ rustc-beta-src/src/tools/cargo/Cargo.lock	2024-12-12 14:07:10.756481534 -0800
+@@ -2272,7 +2272,6 @@ checksum = "10472326a8a6477c3c20a64547b0
  dependencies = [
   "cc",
   "libc",
@@ -9,7 +9,7 @@ diff -up rustc-beta-src/src/tools/cargo/Cargo.lock.orig rustc-beta-src/src/tools
   "libz-sys",
   "openssl-sys",
   "pkg-config",
-@@ -2197,20 +2196,6 @@ dependencies = [
+@@ -2313,20 +2312,6 @@ dependencies = [
   "pkg-config",
   "vcpkg",
  ]
@@ -31,14 +31,14 @@ diff -up rustc-beta-src/src/tools/cargo/Cargo.lock.orig rustc-beta-src/src/tools
  [[package]]
  name = "libz-sys"
 diff -up rustc-beta-src/src/tools/cargo/Cargo.toml.orig rustc-beta-src/src/tools/cargo/Cargo.toml
---- rustc-beta-src/src/tools/cargo/Cargo.toml.orig	2024-09-06 10:36:55.746405645 -0700
-+++ rustc-beta-src/src/tools/cargo/Cargo.toml	2024-09-06 10:37:13.849280464 -0700
-@@ -44,7 +44,7 @@ curl = "0.4.46"
+--- rustc-beta-src/src/tools/cargo/Cargo.toml.orig	2024-12-12 14:07:10.756481534 -0800
++++ rustc-beta-src/src/tools/cargo/Cargo.toml	2024-12-12 14:07:56.866087428 -0800
+@@ -47,7 +47,7 @@ curl = "0.4.46"
  curl-sys = "0.4.73"
  filetime = "0.2.23"
  flate2 = { version = "1.0.30", default-features = false, features = ["zlib"] }
 -git2 = "0.19.0"
 +git2 = { version = "0.19.0", default-features = false, features = ["https"] }
  git2-curl = "0.20.0"
- gix = { version = "0.64.0", default-features = false, features = ["blocking-http-transport-curl", "progress-tree", "parallel", "dirwalk"] }
+ gix = { version = "0.67.0", default-features = false, features = ["blocking-http-transport-curl", "progress-tree", "parallel", "dirwalk"] }
  glob = "0.3.1"
