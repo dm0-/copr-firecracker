@@ -1,4 +1,4 @@
-From e12de251f8513f660bbfbc1c71883383bd1037f4 Mon Sep 17 00:00:00 2001
+From 5273432acfae75d6e509bbebcf8d28b0f3d820d0 Mon Sep 17 00:00:00 2001
 From: Josh Stone <jistone@redhat.com>
 Date: Fri, 9 Jun 2023 15:23:08 -0700
 Subject: [PATCH] Let environment variables override some default CPUs
@@ -23,7 +23,7 @@ index 23913687a1fd..3253fbc84c74 100644
      base.max_atomic_width = Some(64);
      base.stack_probes = StackProbeType::Inline;
 diff --git a/compiler/rustc_target/src/spec/targets/s390x_unknown_linux_gnu.rs b/compiler/rustc_target/src/spec/targets/s390x_unknown_linux_gnu.rs
-index 3efbb4648361..bcdaa5b8276d 100644
+index a84a18a433ff..441af1018ff3 100644
 --- a/compiler/rustc_target/src/spec/targets/s390x_unknown_linux_gnu.rs
 +++ b/compiler/rustc_target/src/spec/targets/s390x_unknown_linux_gnu.rs
 @@ -5,7 +5,7 @@ pub(crate) fn target() -> Target {
@@ -32,9 +32,9 @@ index 3efbb4648361..bcdaa5b8276d 100644
      // z10 is the oldest CPU supported by LLVM
 -    base.cpu = "z10".into();
 +    base.cpu = option_env!("RUSTC_TARGET_CPU_S390X").unwrap_or("z10").into();
-     // FIXME: The ABI implementation in abi/call/s390x.rs is for now hard-coded to assume the no-vector
-     // ABI. Pass the -vector feature string to LLVM to respect this assumption.
-     base.features = "-vector".into();
+     base.max_atomic_width = Some(128);
+     base.min_global_align = Some(16);
+     base.stack_probes = StackProbeType::Inline;
 diff --git a/compiler/rustc_target/src/spec/targets/x86_64_unknown_linux_gnu.rs b/compiler/rustc_target/src/spec/targets/x86_64_unknown_linux_gnu.rs
 index 59ec6c7f9d5f..b6f1be890b20 100644
 --- a/compiler/rustc_target/src/spec/targets/x86_64_unknown_linux_gnu.rs
@@ -49,5 +49,5 @@ index 59ec6c7f9d5f..b6f1be890b20 100644
      base.max_atomic_width = Some(64);
      base.add_pre_link_args(LinkerFlavor::Gnu(Cc::Yes, Lld::No), &["-m64"]);
 -- 
-2.47.0
+2.47.1
 
