@@ -236,6 +236,7 @@ BuildRequires:  (%{name} >= %{bootstrap_version} with %{name} <= %{version})
 
 BuildRequires:  make
 BuildRequires:  clang
+BuildRequires:  lld
 BuildRequires:  ncurses-devel
 # explicit curl-devel to avoid httpd24-curl (rhbz1540167)
 BuildRequires:  curl-devel
@@ -732,6 +733,9 @@ find -name '*.rs' -type f -perm /111 -exec chmod -v -x '{}' '+'
 %global build_rustflags %{nil}
 %endif
 
+# This is mostly needed for lld < 19 which defaulted to a short --build-id=fast.
+%global rustflags -Clink-arg=%{?_build_id_flags}%{!?_build_id_flags:-Wl,--build-id=sha1}
+
 # These are similar to __cflags_arch_* in /usr/lib/rpm/redhat/macros
 %global rustc_target_cpus %{lua: do
   local fedora = tonumber(rpm.expand("0%{?fedora}"))
@@ -841,7 +845,7 @@ test -r "%{profiler}"
     %{!?with_llvm_static: --enable-llvm-link-shared } } \
   --disable-llvm-static-stdcpp \
   --disable-llvm-bitcode-linker \
-  --disable-lld \
+  --disable-lld --set rust.use-lld=true \
   --disable-rpath \
   %{enable_debuginfo} \
   %{enable_rust_opts} \
