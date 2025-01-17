@@ -88,7 +88,7 @@
 
 Name:		musl
 Version:	1.2.5
-Release:	2%{?dist}
+Release:	3%{?dist}
 Summary:	Fully featured lightweight standard C library for Linux
 License:	MIT
 URL:		https://musl.libc.org
@@ -335,9 +335,12 @@ ln -fns . %{buildroot}%{_prefix}/%{_musl_platform}/usr
 
 
 %changelog
-* Fri Jul 26 2024 David Michael <fedora.dm0@gmail.com> - 1.2.5-2
+* Fri Jan 17 2025 David Michael <fedora.dm0@gmail.com> - 1.2.5-3
 - Support parallel multiarch installation.
 - Make crossmode sysroot-compatible with /usr prefixed paths.
+
+* Fri Jan 17 2025 Fedora Release Engineering <releng@fedoraproject.org> - 1.2.5-2
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_42_Mass_Rebuild
 
 * Tue Jul 23 2024 Mary Guillemard <mary@mary.zone> - 1.2.5-1
 - Update to 1.2.5
