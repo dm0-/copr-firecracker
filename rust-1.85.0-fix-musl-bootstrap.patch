@@ -1,5 +1,5 @@
 Define build flags to work with Fedora's musl sysroot, and work around section
-type conflict errors that prevent building with musl targets.
+type conflict errors that prevent building with musl targets.  Also fix GCC 15.
 
 --- a/src/bootstrap/src/core/build_steps/llvm.rs
 +++ b/src/bootstrap/src/core/build_steps/llvm.rs
@@ -51,3 +51,23 @@ type conflict errors that prevent building with musl targets.
      __attribute__((section(".eh_frame"), aligned(sizeof(int32_t)),
                     visibility("hidden"), used)) = {0};
  
+--- a/src/llvm-project/libunwind/src/UnwindLevel1.c
++++ b/src/llvm-project/libunwind/src/UnwindLevel1.c
+@@ -185,7 +185,7 @@
+ 
+ #if defined(_LIBUNWIND_USE_GCS)
+ // Enable the GCS target feature to permit gcspop instructions to be used.
+-__attribute__((target("gcs")))
++__attribute__((target("+gcs")))
+ #endif
+ static _Unwind_Reason_Code
+ unwind_phase2(unw_context_t *uc, unw_cursor_t *cursor, _Unwind_Exception *exception_object) {
+@@ -329,7 +329,7 @@
+ 
+ #if defined(_LIBUNWIND_USE_GCS)
+ // Enable the GCS target feature to permit gcspop instructions to be used.
+-__attribute__((target("gcs")))
++__attribute__((target("+gcs")))
+ #endif
+ static _Unwind_Reason_Code
+ unwind_phase2_forced(unw_context_t *uc, unw_cursor_t *cursor,
