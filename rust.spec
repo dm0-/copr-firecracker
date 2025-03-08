@@ -557,8 +557,9 @@ Provides:       bundled(sqlite) = %{bundled_sqlite3_version}
 %endif
 # For tests:
 BuildRequires:  git-core
-# Cargo is not much use without Rust
-Requires:       %{name}
+# Cargo is not much use without Rust, and it's worth keeping the versions
+# in sync since some feature development depends on them together.
+Requires:       %{name} = %{version}-%{release}
 
 # "cargo vendor" is a builtin command starting with 1.37.  The Obsoletes and
 # Provides are mostly relevant to RHEL, but harmless to have on Fedora/etc. too
