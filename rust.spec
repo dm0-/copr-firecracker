@@ -1,6 +1,6 @@
 Name:           rust
-Version:        1.85.0
-Release:        2%{?dist}
+Version:        1.85.1
+Release:        %autorelease
 Summary:        The Rust Programming Language
 License:        (Apache-2.0 OR MIT) AND (Artistic-2.0 AND BSD-3-Clause AND ISC AND MIT AND MPL-2.0 AND Unicode-3.0)
 # ^ written as: (rust itself) and (bundled libraries)
@@ -45,7 +45,9 @@ ExclusiveArch:  %{rust_arches}
 # is insufficient.  Rust currently requires LLVM 18.0+.
 %global min_llvm_version 18.0.0
 %global bundled_llvm_version 19.1.7
-#global llvm_compat_version 18
+%if 0%{?fedora} >= 42 || 0%{?rhel} > 10
+%global llvm_compat_version 19
+%endif
 %global llvm llvm%{?llvm_compat_version}
 %bcond_with bundled_llvm
 
@@ -142,9 +144,6 @@ Patch6:         rustc-1.85.0-unbundle-sqlite.patch
 # https://github.com/rust-lang/cc-rs/issues/1354
 Patch7:         0001-Only-translate-profile-flags-for-Clang.patch
 
-# Adjust Fedora packaging flags as needed for a different libc.
-Patch99:        %{name}-1.85.0-fix-musl-bootstrap.patch
-
 ### RHEL-specific patches below ###
 
 # Simple rpm macros for rust-toolset (as opposed to full rust-packaging)
@@ -186,7 +185,6 @@ end}
 %ifarch x86_64
 %if 0%{?fedora}
 %global mingw_targets i686-pc-windows-gnu x86_64-pc-windows-gnu
-%global musl_targets i686-unknown-linux-musl x86_64-unknown-linux-musl
 %endif
 %global wasm_targets wasm32-unknown-unknown wasm32-wasip1
 %if 0%{?fedora}
@@ -195,8 +193,6 @@ end}
 %if 0%{?rhel} >= 10
 %global extra_targets x86_64-unknown-none
 %endif
-%elif 0%{?fedora}
-%global musl_targets %{rust_triple %{_target_cpu} musl}
 %endif
 %ifarch aarch64
 %if 0%{?fedora}
@@ -206,15 +202,10 @@ end}
 %global extra_targets aarch64-unknown-none-softfloat
 %endif
 %endif
-%global all_targets %{?mingw_targets} %{?musl_targets} %{?wasm_targets} %{?extra_targets}
+%global all_targets %{?mingw_targets} %{?wasm_targets} %{?extra_targets}
 %define target_enabled() %{lua:
   print(rpm.expand(" %{all_targets} "):find(rpm.expand(" %1 "), 1, true) or 0)
 }
-
-# Use the self-contained musl by default, and build a static libunwind from the
-# bundled code since Fedora's RPM is incompatible (built against glibc).  This
-# condition is overloaded, and disabling it is not expected to work.
-%bcond_without bundled_musl_libc
 
 %if %defined bootstrap_arches
 # For each bootstrap arch, add an additional binary Source.
@@ -294,6 +285,7 @@ Provides:       bundled(llvm) = %{bundled_llvm_version}
 BuildRequires:  cmake >= 3.5.1
 %if %defined llvm_compat_version
 %global llvm_root %{_libdir}/%{llvm}
+%global llvm_path %{llvm_root}/bin
 %else
 %global llvm_root %{_prefix}
 %endif
@@ -316,12 +308,6 @@ BuildRequires:  python3-rpm
 
 # For src/test/run-make/static-pie
 BuildRequires:  glibc-static
-
-# For tests/run-make/pgo-branch-weights
-# riscv64 does not support binutils-gold yet
-%ifnarch riscv64
-BuildRequires:  binutils-gold
-%endif
 
 # Virtual provides for folks who attempt "dnf install rustc"
 Provides:       rustc = %{version}-%{release}
@@ -357,12 +343,6 @@ Requires:       /usr/bin/cc
 %global __brp_strip_static_archive %{nil}
 %global __brp_strip_lto %{nil}
 
-%if %{without bundled_llvm}
-%if "%{llvm_root}" == "%{_prefix}" || 0%{?scl:1}
-%global llvm_has_filecheck 1
-%endif
-%endif
-
 # We're going to override --libdir when configuring to get rustlib into a
 # common path, but we'll fix the shared libraries during install.
 %global common_libdir %{_prefix}/lib
@@ -379,20 +359,13 @@ BuildRequires:  mingw32-winpthreads-static
 BuildRequires:  mingw64-winpthreads-static
 %endif
 
-%if %defined musl_targets
-%ifarch x86_64
-BuildRequires:  musl-libc-static(x86-32)
-%endif
-BuildRequires:  musl-libc-static%{?_isa}
-%endif
-
 %if %defined wasm_targets
 %if %with bundled_wasi_libc
-BuildRequires:  clang
+BuildRequires:  clang%{?llvm_compat_version}
 %else
 BuildRequires:  wasi-libc-static
 %endif
-BuildRequires:  lld
+BuildRequires:  lld%{?llvm_compat_version}
 %endif
 
 # For profiler_builtins
@@ -401,6 +374,29 @@ BuildRequires:  compiler-rt%{?llvm_compat_version}
 # This component was removed as of Rust 1.69.0.
 # https://github.com/rust-lang/rust/pull/101841
 Obsoletes:      %{name}-analysis < 1.69.0~
+
+# Experimenting with a fine-grained version of %%cargo_vendor_manifest,
+# so we can have different bundled provides for each tool subpackage.
+%define cargo_tree_manifest(n:m:f:t:) (       \
+  %{!-n:%{error:must specify a tool name}}    \
+  set -euo pipefail                           \
+  mkdir -p build/manifests/%{-n*}             \
+  %{shrink:                                   \
+    env RUSTC_BOOTSTRAP=1                     \
+      %{local_rust_root}/bin/cargo tree       \
+      --offline --edges normal,build          \
+      --prefix none --format "{p}"            \
+      %{-m:--manifest-path %{-m*}/Cargo.toml} \
+      %{-f:--features %{-f*}}                 \
+      %{-t:--target %{-t*}}                   \
+      %*                                      \
+    | sed '/([*/]/d; s/ (proc-macro)$//'      \
+    | sort -u                                 \
+    >build/manifests/%{-n*}/cargo-vendor.txt  \
+  }                                           \
+)
+%{?fedora:BuildRequires: cargo-rpm-macros}
+%{?rhel:BuildRequires: rust-toolset}
 
 %description
 Rust is a systems programming language that runs blazingly fast, prevents
@@ -450,17 +446,6 @@ Provides:       mingw64-rustc = %{version}-%{release}
 BuildArch:      noarch
 %target_description x86_64-pc-windows-gnu MinGW
 %endif
-
-%{lua: for target in rpm.expand("%{?musl_targets}"):gmatch("%S+") do
-  print(rpm.expand(string.gsub([[
-%target_package {{target}}
-%if %{without bundled_musl_libc}
-Requires:       musl-libc-static%[ "{{target}}" == "i686-unknown-linux-musl" ? "(x86-32)" : "%{?_isa}" ]
-%endif
-BuildArch:      noarch
-%target_description {{target}} musl
-]], "{{(%w+)}}", {target=target}) .. "\n"))
-end}
 
 %if %target_enabled wasm32-unknown-unknown
 %target_package wasm32-unknown-unknown
@@ -567,8 +552,9 @@ Provides:       bundled(sqlite) = %{bundled_sqlite3_version}
 %endif
 # For tests:
 BuildRequires:  git-core
-# Cargo is not much use without Rust
-Requires:       %{name}
+# Cargo is not much use without Rust, and it's worth keeping the versions
+# in sync since some feature development depends on them together.
+Requires:       %{name} = %{version}-%{release}
 
 # "cargo vendor" is a builtin command starting with 1.37.  The Obsoletes and
 # Provides are mostly relevant to RHEL, but harmless to have on Fedora/etc. too
@@ -713,16 +699,8 @@ sed -i.try-python -e '/^try python3 /i try "%{__python3}" "$@"' ./configure
 sed -i.rust-src -e "s#@BUILDDIR@#$PWD#" ./src/etc/rust-gdb
 
 %if %without bundled_llvm
-%if %{defined musl_targets} && %{with bundled_musl_libc}
-%patch -P99 -p1
-mv -t . src/llvm-project/{compiler-rt,libunwind}
-rm -rf src/llvm-project
-mkdir -p src/llvm-project
-mv -t src/llvm-project compiler-rt libunwind
-%else
 rm -rf src/llvm-project/
 mkdir -p src/llvm-project/libunwind/
-%endif
 %endif
 
 # Remove submodules we don't need.
@@ -806,6 +784,7 @@ end}
   %{!?with_bundled_oniguruma:RUSTONIG_SYSTEM_LIBONIG=1}
   %{!?with_bundled_sqlite3:LIBSQLITE3_SYS_USE_PKG_CONFIG=1}
   %{!?with_disabled_libssh2:LIBSSH2_SYS_USE_PKG_CONFIG=1}
+  %{?llvm_path:PATH="%{llvm_path}:$PATH"}
 }
 %global export_rust_env export %{rust_env}
 
@@ -846,20 +825,6 @@ end}
 }
 %endif
 
-%if %defined musl_targets
-%{lua: do
-  local cfg = ""
-  for triple in rpm.expand("%{?musl_targets}"):gmatch("%S+") do
-    local arch = triple:sub(1, 4) == "i686" and "i386" or rpm.expand("%{_target_cpu}")
-    cfg = cfg .. " --set target." .. triple .. rpm.expand(".llvm-libunwind=%[ %{with bundled_musl_libc} ? \"in-tree\" : \"system\" ]")
-    cfg = cfg .. " --set target." .. triple .. rpm.expand(".musl-libdir=%{_musl_" .. arch .. "_libdir}")
-    cfg = cfg .. " --set target." .. triple .. rpm.expand(".musl-root=%{_musl_" .. arch .. "_sysroot}")
-    cfg = cfg .. " --set target." .. triple .. rpm.expand(".self-contained=%[ %{with bundled_musl_libc} ? \"true\" : \"false\" ]")
-  end
-  rpm.define("musl_target_config" .. cfg)
-end}
-%endif
-
 %if %defined wasm_targets
 %if %with bundled_wasi_libc
 %define wasi_libc_flags MALLOC_IMPL=emmalloc CC=clang AR=llvm-ar NM=llvm-nm
@@ -876,12 +841,8 @@ end}
 %endif
 
 # Find the compiler-rt library for the Rust profiler_builtins crate.
-%if %defined llvm_compat_version
-# clang_resource_dir is not defined for compat builds.
-%define profiler /usr/lib/clang/%{llvm_compat_version}/lib/%{_arch}-redhat-linux-gnu/libclang_rt.profile.a
-%else
-%define profiler %{clang_resource_dir}/lib/%{_arch}-redhat-linux-gnu/libclang_rt.profile.a
-%endif
+%define clang_lib %{expand:%%clang%{?llvm_compat_version}_resource_dir}/lib
+%define profiler %{clang_lib}/%{_arch}-redhat-linux-gnu/libclang_rt.profile.a
 test -r "%{profiler}"
 
 %configure --disable-option-checking \
@@ -895,13 +856,11 @@ test -r "%{profiler}"
   --set target.%{rust_triple}.ranlib=%{__ranlib} \
   --set target.%{rust_triple}.profiler="%{profiler}" \
   %{?mingw_target_config} \
-  %{?musl_target_config} \
   %{?wasm_target_config} \
   --python=%{__python3} \
   --local-rust-root=%{local_rust_root} \
   --set build.rustfmt=/bin/true \
   %{!?with_bundled_llvm: --llvm-root=%{llvm_root} \
-    %{!?llvm_has_filecheck: --disable-codegen-tests} \
     %{!?with_llvm_static: --enable-llvm-link-shared } } \
   --disable-llvm-static-stdcpp \
   --disable-llvm-bitcode-linker \
@@ -935,7 +894,7 @@ mkdir -p "%{profraw}"
 env LLVM_PROFILE_FILE="%{profraw}/default_%%m_%%p.profraw" \
   %{__x} --keep-stage=0 --keep-stage=1 build cargo
 # Finalize the profile data and clean up the raw files
-%{llvm_root}/bin/llvm-profdata merge -o "%{profdata}" "%{profraw}"
+llvm-profdata merge -o "%{profdata}" "%{profraw}"
 rm -r "%{profraw}" build/%{rust_triple}/stage2*/
 # Redefine the macro to use that profile data from now on
 %global __x %{__x} --rust-profile-use="%{profdata}"
@@ -950,6 +909,21 @@ rm -r "%{profraw}" build/%{rust_triple}/stage2*/
 
 for triple in %{?all_targets} ; do
   %{__x} build --target=$triple std
+done
+
+# Collect cargo-vendor.txt for each tool and std
+%{cargo_tree_manifest -n rustc -- -p rustc-main -p rustdoc}
+%{cargo_tree_manifest -n cargo -m src/tools/cargo}
+%{cargo_tree_manifest -n clippy -m src/tools/clippy}
+%{cargo_tree_manifest -n rust-analyzer -m src/tools/rust-analyzer}
+%{cargo_tree_manifest -n rustfmt -m src/tools/rustfmt}
+
+%{cargo_tree_manifest -n std -m library -f backtrace}
+for triple in %{?all_targets} ; do
+  case $triple in
+    *-none*) %{cargo_tree_manifest -n std-$triple -m library/alloc -t $triple} ;;
+    *) %{cargo_tree_manifest -n std-$triple -m library -f backtrace -t $triple} ;;
+  esac
 done
 
 %install
@@ -1054,7 +1028,7 @@ TMP_HELLO=$(mktemp -d)
   test -r default_*.profraw
 
   # Try a build sanity-check for other std-enabled targets
-  for triple in %{?mingw_targets} %{?musl_targets} %{?wasm_targets}; do
+  for triple in %{?mingw_targets} %{?wasm_targets}; do
     %{buildroot}%{_bindir}/cargo build --verbose --target=$triple
   done
 )
@@ -1097,6 +1071,7 @@ rm -rf "./build/%{rust_triple}/stage2-tools/%{rust_triple}/cit/"
 %{_libexecdir}/rust-analyzer-proc-macro-srv
 %{_mandir}/man1/rustc.1*
 %{_mandir}/man1/rustdoc.1*
+%license build/manifests/rustc/cargo-vendor.txt
 
 
 %files std-static
@@ -1105,6 +1080,7 @@ rm -rf "./build/%{rust_triple}/stage2-tools/%{rust_triple}/cit/"
 %dir %{rustlibdir}/%{rust_triple}/lib
 %{rustlibdir}/%{rust_triple}/lib/*.rlib
 %{rustlibdir}/%{rust_triple}/lib/*.so
+%license build/manifests/std/cargo-vendor.txt
 
 %global target_files()      \
 %files std-static-%1        \
@@ -1112,8 +1088,7 @@ rm -rf "./build/%{rust_triple}/stage2-tools/%{rust_triple}/cit/"
 %dir %{rustlibdir}/%1       \
 %dir %{rustlibdir}/%1/lib   \
 %{rustlibdir}/%1/lib/*.rlib \
-%exclude %{rustlibdir}/%1/lib/*.so \
-%exclude %{common_libdir}/debug/%{rustlibdir}/%1/lib/*.so*.debug
+%license build/manifests/std-%1/cargo-vendor.txt
 
 %if %target_enabled i686-pc-windows-gnu
 %target_files i686-pc-windows-gnu
@@ -1128,19 +1103,6 @@ rm -rf "./build/%{rust_triple}/stage2-tools/%{rust_triple}/cit/"
 %exclude %{rustlibdir}/x86_64-pc-windows-gnu/lib/*.dll
 %exclude %{rustlibdir}/x86_64-pc-windows-gnu/lib/*.dll.a
 %endif
-
-%{lua: for target in rpm.expand("%{?musl_targets}"):gmatch("%S+") do
-  print(rpm.expand(string.gsub([[
-%target_files {{target}}
-%if %with bundled_musl_libc
-%dir %{rustlibdir}/{{target}}/lib/self-contained
-%{rustlibdir}/{{target}}/lib/self-contained/*crt*.o
-%{rustlibdir}/{{target}}/lib/self-contained/libc.a
-%{rustlibdir}/{{target}}/lib/self-contained/libunwind.a
-%exclude %{rustlibdir}/{{target}}/lib/libunwind.a
-%endif
-]], "{{(%w+)}}", {target=target}) .. "\n"))
-end}
 
 %if %target_enabled wasm32-unknown-unknown
 %target_files wasm32-unknown-unknown
@@ -1208,6 +1170,7 @@ end}
 %{_datadir}/zsh/site-functions/_cargo
 %dir %{_datadir}/cargo
 %dir %{_datadir}/cargo/registry
+%license build/manifests/cargo/cargo-vendor.txt
 
 
 %files -n rustfmt
@@ -1215,6 +1178,7 @@ end}
 %{_bindir}/cargo-fmt
 %doc src/tools/rustfmt/{README,CHANGELOG,Configurations}.md
 %license src/tools/rustfmt/LICENSE-{APACHE,MIT}
+%license build/manifests/rustfmt/cargo-vendor.txt
 
 
 %files analyzer
@@ -1222,6 +1186,7 @@ end}
 %{_bindir}/rust-analyzer
 %doc src/tools/rust-analyzer/README.md
 %license src/tools/rust-analyzer/LICENSE-{APACHE,MIT}
+%license build/manifests/rust-analyzer/cargo-vendor.txt
 
 
 %files -n clippy
@@ -1229,6 +1194,7 @@ end}
 %{_bindir}/clippy-driver
 %doc src/tools/clippy/{README.md,CHANGELOG.md}
 %license src/tools/clippy/LICENSE-{APACHE,MIT}
+%license build/manifests/clippy/cargo-vendor.txt
 
 
 %files src
@@ -1248,5 +1214,4 @@ end}
 
 
 %changelog
-* Thu Feb 20 2025 David Michael <fedora.dm0@gmail.com> - 1.85.0-2
-- Build musl target subpackages.
+%autochangelog
