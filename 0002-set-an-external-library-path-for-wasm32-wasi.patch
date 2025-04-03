@@ -1,4 +1,4 @@
-From e8e50258df70b39d2425dacf90c3d5f6d0720bc0 Mon Sep 17 00:00:00 2001
+From 9551ffded09131ac225261ab55a7b3c9d09ad3bb Mon Sep 17 00:00:00 2001
 From: Josh Stone <jistone@redhat.com>
 Date: Thu, 28 Sep 2023 18:18:16 -0700
 Subject: [PATCH 2/2] set an external library path for wasm32-wasi
@@ -11,10 +11,10 @@ Subject: [PATCH 2/2] set an external library path for wasm32-wasi
  4 files changed, 18 insertions(+), 3 deletions(-)
 
 diff --git a/compiler/rustc_codegen_ssa/src/back/link.rs b/compiler/rustc_codegen_ssa/src/back/link.rs
-index e2081ad75633..a308bae8b644 100644
+index 105a4cb81f0d..21bd626842c7 100644
 --- a/compiler/rustc_codegen_ssa/src/back/link.rs
 +++ b/compiler/rustc_codegen_ssa/src/back/link.rs
-@@ -1639,6 +1639,12 @@ fn get_object_file_path(sess: &Session, name: &str, self_contained: bool) -> Pat
+@@ -1686,6 +1686,12 @@ fn get_object_file_path(sess: &Session, name: &str, self_contained: bool) -> Pat
              return file_path;
          }
      }
@@ -27,7 +27,7 @@ index e2081ad75633..a308bae8b644 100644
      for search_path in sess.target_filesearch().search_paths(PathKind::Native) {
          let file_path = search_path.dir.join(name);
          if file_path.exists() {
-@@ -2139,6 +2145,10 @@ fn add_library_search_dirs(
+@@ -2186,6 +2192,10 @@ fn add_library_search_dirs(
              ControlFlow::<()>::Continue(())
          },
      );
@@ -39,10 +39,10 @@ index e2081ad75633..a308bae8b644 100644
  
  /// Add options making relocation sections in the produced ELF files read-only
 diff --git a/compiler/rustc_target/src/spec/json.rs b/compiler/rustc_target/src/spec/json.rs
-index 9cdc0801b1f0..70fe8396b353 100644
+index f703132e51f0..c4821be7d12e 100644
 --- a/compiler/rustc_target/src/spec/json.rs
 +++ b/compiler/rustc_target/src/spec/json.rs
-@@ -527,6 +527,7 @@ macro_rules! key {
+@@ -540,6 +540,7 @@ macro_rules! key {
          key!(linker_is_gnu_json = "linker-is-gnu", bool);
          key!(pre_link_objects = "pre-link-objects", link_objects);
          key!(post_link_objects = "post-link-objects", link_objects);
@@ -50,7 +50,7 @@ index 9cdc0801b1f0..70fe8396b353 100644
          key!(pre_link_objects_self_contained = "pre-link-objects-fallback", link_objects);
          key!(post_link_objects_self_contained = "post-link-objects-fallback", link_objects);
          // Deserializes the backwards-compatible variants of `-Clink-self-contained`
-@@ -708,6 +709,7 @@ macro_rules! target_option_val {
+@@ -723,6 +724,7 @@ macro_rules! target_option_val {
          target_option_val!(linker_is_gnu_json, "linker-is-gnu");
          target_option_val!(pre_link_objects);
          target_option_val!(post_link_objects);
@@ -59,10 +59,10 @@ index 9cdc0801b1f0..70fe8396b353 100644
          target_option_val!(post_link_objects_self_contained, "post-link-objects-fallback");
          target_option_val!(link_args - pre_link_args_json, "pre-link-args");
 diff --git a/compiler/rustc_target/src/spec/mod.rs b/compiler/rustc_target/src/spec/mod.rs
-index 02962d55a60e..169f5a74bbfd 100644
+index 794d6457cb78..b2d88a14bb57 100644
 --- a/compiler/rustc_target/src/spec/mod.rs
 +++ b/compiler/rustc_target/src/spec/mod.rs
-@@ -2197,6 +2197,7 @@ pub struct TargetOptions {
+@@ -2237,6 +2237,7 @@ pub struct TargetOptions {
      /// Objects to link before and after all other object code.
      pub pre_link_objects: CrtObjects,
      pub post_link_objects: CrtObjects,
@@ -70,7 +70,7 @@ index 02962d55a60e..169f5a74bbfd 100644
      /// Same as `(pre|post)_link_objects`, but when self-contained linking mode is enabled.
      pub pre_link_objects_self_contained: CrtObjects,
      pub post_link_objects_self_contained: CrtObjects,
-@@ -2712,6 +2713,7 @@ fn default() -> TargetOptions {
+@@ -2754,6 +2755,7 @@ fn default() -> TargetOptions {
              relro_level: RelroLevel::None,
              pre_link_objects: Default::default(),
              post_link_objects: Default::default(),
@@ -99,5 +99,5 @@ index 0862958d05da..b1e736d68627 100644
      // Right now this is a bit of a workaround but we're currently saying that
      // the target by default has a static crt which we're taking as a signal
 -- 
-2.47.1
+2.48.1
 
