@@ -11,26 +11,28 @@
 %bcond jailer   %{lua:print(rpm.expand("%{?cargo_target}"):find("musl") or 0)}
 
 Name:           firecracker
-Version:        1.10.1
-Release:        2%{?dist}
+Version:        1.11.0
+Release:        1%{?dist}
 
 Summary:        Secure and fast microVMs for serverless computing
 SourceLicense:  Apache-2.0
-License:        Apache-2.0 AND (Apache-2.0 OR BSD-2-Clause OR MIT) AND (Apache-2.0 OR BSL-1.0) AND (Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT) AND BSD-3-Clause AND MIT AND (MIT OR Unlicense) AND Unicode-DFS-2016
+License:        Apache-2.0 AND (Apache-2.0 OR BSD-2-Clause OR MIT) AND (Apache-2.0 OR BSL-1.0) AND (Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT) AND BSD-3-Clause AND MIT AND (MIT OR Unlicense) AND Unicode-3.0 AND Unicode-DFS-2016
 URL:            https://firecracker-microvm.github.io/
 
 Source0:        https://github.com/firecracker-microvm/firecracker/archive/v%{version}/%{name}-%{version}.tar.gz
 
 # Bundle forked versions of existing crates to avoid conflicts with upstreams.
-Source1:        https://github.com/firecracker-microvm/micro-http/archive/8182cd5523b63ceb52ad9d0e7eb6fb95683e6d1b/micro_http-8182cd5.tar.gz
-Provides:       bundled(crate(micro_http)) = 0.1.0^git8182cd5
+Source1:        https://github.com/firecracker-microvm/micro-http/archive/ef96f623c46e221ebf9b6037567f97ec57683afd/micro_http-ef96f62.tar.gz
+Provides:       bundled(crate(micro_http)) = 0.1.0^gitef96f62
 
+Patch:          %{name}-1.11.0-dynamic-linking.patch
 # Edit crate dependencies to track what is packaged in Fedora.
-Patch:          %{name}-1.10.0-remove-aws-lc-rs.patch
-Patch:          %{name}-1.10.0-remove-criterion.patch
-Patch:          %{name}-1.10.0-remove-device_tree.patch
+Patch:          %{name}-1.11.0-remove-aws-lc-rs.patch
+Patch:          %{name}-1.11.0-remove-criterion.patch
+Patch:          %{name}-1.11.0-remove-device_tree.patch
 
 BuildRequires:  cargo-rpm-macros >= 24
+BuildRequires:  libseccomp-devel
 %if %{defined cargo_target}
 BuildRequires:  rust-std-static-%{cargo_target}
 %endif
@@ -62,6 +64,7 @@ sed -i -e 's,^\(micro_http\) = .*,\1 = { path = "../../forks/\1" },' src/*/Cargo
 %build
 export AR=ar RANLIB=ranlib
 %cargo_build -- --package={cpu-template-helper,firecracker,%{?with_jailer:jailer,}rebase-snap,seccompiler,snapshot-editor} %{?cargo_target:--target=%{cargo_target}}
+%cargo_license_summary
 %{cargo_license} > LICENSE.dependencies
 
 %install
@@ -96,6 +99,9 @@ done
 
 
 %changelog
+* Sun Mar 30 2025 David Michael <fedora.dm0@gmail.com> - 1.11.0-1
+- Update to the 1.11.0 release.
+
 * Thu Jan 16 2025 Fedora Release Engineering <releng@fedoraproject.org> - 1.10.1-2
 - Rebuilt for https://fedoraproject.org/wiki/Fedora_42_Mass_Rebuild
 

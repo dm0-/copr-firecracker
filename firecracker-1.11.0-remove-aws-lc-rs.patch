@@ -11,7 +11,7 @@ switch to that in the future.
 
 --- a/resources/seccomp/aarch64-unknown-linux-musl.json
 +++ b/resources/seccomp/aarch64-unknown-linux-musl.json
-@@ -78,10 +78,6 @@
+@@ -74,10 +74,6 @@
                  "syscall": "fstat",
                  "comment": "Used for drive patching & rescanning, for reading the local timezone from /etc/localtime"
              },
@@ -22,7 +22,7 @@ switch to that in the future.
              {
                  "syscall": "ftruncate",
                  "comment": "Used for snapshotting"
-@@ -116,7 +112,7 @@
+@@ -112,7 +108,7 @@
              },
              {
                "syscall": "getrandom",
@@ -31,7 +31,7 @@ switch to that in the future.
              },
              {
                  "syscall": "accept4",
-@@ -218,7 +214,16 @@
+@@ -214,7 +210,16 @@
              },
              {
                  "syscall": "madvise",
@@ -51,20 +51,20 @@ switch to that in the future.
                  "syscall": "mmap",
 --- a/resources/seccomp/x86_64-unknown-linux-musl.json
 +++ b/resources/seccomp/x86_64-unknown-linux-musl.json
-@@ -112,7 +112,7 @@
+@@ -108,7 +108,7 @@
              },
              {
-               "syscall": "getrandom",
--              "comment": "getrandom is used by aws-lc library which we consume in virtio-rng" 
-+              "comment": "getrandom is used by virtio-rng to initialize the rand crate"
+                 "syscall": "getrandom",
+-                "comment": "getrandom is used by aws-lc library which we consume in virtio-rng"
++                "comment": "getrandom is used by virtio-rng to initialize the rand crate"
              },
              {
                  "syscall": "accept4",
-@@ -214,7 +214,16 @@
+@@ -210,7 +210,16 @@
              },
              {
                  "syscall": "madvise",
--                "comment": "Used by the VirtIO balloon device and by musl for some customer workloads. It is also used by aws-lc during random number generation. They setup a memory page that mark with MADV_WIPEONFORK to be able to detect forks. They also call it with -1 to see if madvise is supported in certain platforms." 
+-                "comment": "Used by the VirtIO balloon device and by musl for some customer workloads. It is also used by aws-lc during random number generation. They setup a memory page that mark with MADV_WIPEONFORK to be able to detect forks. They also call it with -1 to see if madvise is supported in certain platforms."
 +                "comment": "Used by the VirtIO balloon device and by musl for some customer workloads",
 +                "args": [
 +                    {
@@ -84,11 +84,11 @@ switch to that in the future.
  acpi_tables = { path = "../acpi-tables" } 
  aes-gcm =  { version = "0.10.1", default-features = false, features = ["aes"] }
  arrayvec = { version = "0.7.6", optional = true }
--aws-lc-rs = { version = "1.10.0", features = ["bindgen"] }
+-aws-lc-rs = { version = "1.12.4", features = ["bindgen"] }
 +rand = "0.8.5"
  base64 = "0.22.1"
  bincode = "1.2.1"
- bitflags = "2.6.0"
+ bitflags = "2.8.0"
 --- a/src/vmm/src/devices/acpi/vmgenid.rs
 +++ b/src/vmm/src/devices/acpi/vmgenid.rs
 @@ -2,9 +2,9 @@
@@ -149,8 +149,8 @@ switch to that in the future.
          }
  
          let mut rand_bytes = vec![0; self.buffer.len() as usize];
--        rand::fill(&mut rand_bytes).map_err(|err| {
-+        OsRng.try_fill_bytes(&mut rand_bytes).map_err(|err| {
+-        rand::fill(&mut rand_bytes).inspect_err(|_| {
++        OsRng.try_fill_bytes(&mut rand_bytes).inspect_err(|_| {
              METRICS.host_rng_fails.inc();
-             err
          })?;
+ 

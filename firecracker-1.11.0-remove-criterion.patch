@@ -2,11 +2,11 @@ The package build does not run benches.
 
 --- a/src/vmm/Cargo.toml
 +++ b/src/vmm/Cargo.toml
-@@ -52,7 +52,6 @@
+@@ -50,7 +50,6 @@
  vm-fdt = "0.3.0"
  
  [dev-dependencies]
 -criterion = { version = "0.5.0", default-features = false }
  device_tree = "1.1.0"
- itertools = "0.13.0"
- proptest = { version = "1.5.0", default-features = false, features = ["std"] }
+ itertools = "0.14.0"
+ proptest = { version = "1.6.0", default-features = false, features = ["std"] }

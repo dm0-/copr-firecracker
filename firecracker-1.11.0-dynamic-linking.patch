@@ -1,0 +1,17 @@
+Force linking system libraries dynamically.  This does not affect the target's
+default C runtime linking, so e.g. the main binary will still be static when
+built with a musl target since it's not linking anything else.  This is just to
+make a helper tool work by sharing system libraries since Fedora doesn't have a
+static musl-compatible version.
+
+--- a/src/seccompiler/src/bindings.rs
++++ b/src/seccompiler/src/bindings.rs
+@@ -80,7 +80,7 @@
+ /// Allow the syscall to be executed
+ pub const SCMP_ACT_ALLOW: u32 = 0x7fff0000;
+ 
+-#[link(name = "seccomp")]
++#[link(name = "seccomp", kind = "dylib")]
+ unsafe extern "C" {
+     /// Initialize the filter state
+     ///
