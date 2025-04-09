@@ -18,6 +18,10 @@
 
 
 # Ensure the value is set correctly
+%ifarch %{x86_64}
+%global _musl_target_cpu x86_64
+%endif
+
 %ifarch %{ix86}
 %global _musl_target_cpu i386
 %endif
@@ -53,7 +57,7 @@
 %endif
 %endif
 
-%ifnarch %{ix86} %{arm} %{mips} %{power64} ppc
+%ifnarch %{x86_64} %{ix86} %{arm} %{mips} %{power64} ppc
 %global _musl_target_cpu %{_target_cpu}
 %endif
 
@@ -270,23 +274,12 @@ ln -sr %{buildroot}/lib/ld-musl-%{_musl_target_cpu}.so.1 %{buildroot}%{_syslibdi
 %endif
 %endif
 
-mkdir -p %{buildroot}%{_rpmmacrodir}
-%if %{without crossmode}
-cat > %{buildroot}%{_rpmmacrodir}/macros.musl <<EOF
+mkdir -p %{buildroot}%{_rpmconfigdir}/macros.d
+touch %{buildroot}%{_rpmconfigdir}/macros.d/macros.musl
+cat > %{buildroot}%{_rpmconfigdir}/macros.d/macros.musl <<EOF
 %%_musl_libdir %{_libdir}
 %%_musl_includedir %{_includedir}
 EOF
-%else
-# Support installing multiple architecture sysroots at once.
-cat > %{buildroot}%{_rpmmacrodir}/macros.musl-%{_musl_target_cpu} <<EOF
-%%_musl_includedir %{_includedir}
-%%_musl_libdir %{_libdir}
-%%_musl_%{_musl_target_cpu}_sysroot %%{_prefix}/%{_musl_platform}
-%%_musl_%{_musl_target_cpu}_includedir %%{_musl_%{_musl_target_cpu}_sysroot}/usr/include
-%%_musl_%{_musl_target_cpu}_libdir %%{_musl_%{_musl_target_cpu}_sysroot}/usr/%{_lib}
-EOF
-ln -fns . %{buildroot}%{_prefix}/%{_musl_platform}/usr
-%endif
 
 %files libc
 %license COPYRIGHT
@@ -303,7 +296,6 @@ ln -fns . %{buildroot}%{_prefix}/%{_musl_platform}/usr
 %files filesystem
 %if %{with crossmode}
 %dir %{_prefix}/%{_musl_platform}
-%{_prefix}/%{_musl_platform}/usr
 %endif
 %dir %{_libdir}
 %dir %{_includedir}
@@ -317,7 +309,7 @@ ln -fns . %{buildroot}%{_prefix}/%{_musl_platform}/usr
 %{_libdir}/*.o
 %{_libdir}/*.a
 %exclude %{_libdir}/libc.a
-%{_rpmmacrodir}/macros.musl*
+%{_rpmconfigdir}/macros.d/macros.musl
 
 %files libc-static
 %license COPYRIGHT
@@ -335,9 +327,8 @@ ln -fns . %{buildroot}%{_prefix}/%{_musl_platform}/usr
 
 
 %changelog
-* Fri Jan 17 2025 David Michael <fedora.dm0@gmail.com> - 1.2.5-3
-- Support parallel multiarch installation.
-- Make crossmode sysroot-compatible with /usr prefixed paths.
+* Tue Apr 01 2025 Eduard Abdullin <eabdullin@almalinux.org> - 1.2.5-3
+- Use the x86_64 target on x86_64 microarches
 
 * Fri Jan 17 2025 Fedora Release Engineering <releng@fedoraproject.org> - 1.2.5-2
 - Rebuilt for https://fedoraproject.org/wiki/Fedora_42_Mass_Rebuild
