@@ -57,7 +57,7 @@
 %endif
 %endif
 
-%ifnarch %{ix86} %{arm} %{mips} %{power64} ppc
+%ifnarch %{x86_64} %{ix86} %{arm} %{mips} %{power64} ppc
 %global _musl_target_cpu %{_target_cpu}
 %endif
 
