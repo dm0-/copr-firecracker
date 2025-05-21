@@ -1,0 +1,71 @@
+Define build flags to work with Fedora's musl sysroot, and work around section
+type conflict errors that prevent building with musl targets.
+
+--- a/src/bootstrap/src/core/build_steps/llvm.rs
++++ b/src/bootstrap/src/core/build_steps/llvm.rs
+@@ -1370,6 +1370,7 @@
+             .define("CRT_HAS_INITFINI_ARRAY", None)
+             .define("EH_USE_FRAME_REGISTRY", None);
+ 
++        set_musl_flags(&mut cfg, &self.target);
+         let objs = cfg.compile_intermediates();
+         assert_eq!(objs.len(), 2);
+         for obj in objs {
+@@ -1468,6 +1469,7 @@
+                 cfg.define("_LIBUNWIND_HIDE_SYMBOLS", "1");
+                 cfg.define("_LIBUNWIND_IS_NATIVE_ONLY", "1");
+             }
++            set_musl_flags(cfg, &self.target);
+         }
+ 
+         cc_cfg.compiler(builder.cc(self.target));
+@@ -1542,3 +1544,18 @@
+         out_dir
+     }
+ }
++
++fn set_musl_flags(cfg: &mut cc::Build, target: &TargetSelection) {
++    if !target.ends_with("-musl") {
++        return;
++    }
++
++    let arch = match target.triple.split('-').next().unwrap() {
++        "i686" => "i386",
++        "riscv64gc" => "riscv64",
++        x => x,
++    };
++
++    cfg.define("_LIBUNWIND_IS_NATIVE_ONLY", None);
++    cfg.flag(format!("--sysroot=/usr/{arch}-linux-musl").as_str());
++}
+--- a/src/llvm-project/compiler-rt/lib/builtins/crtend.c
++++ b/src/llvm-project/compiler-rt/lib/builtins/crtend.c
+@@ -9,7 +9,7 @@
+ #include <stdint.h>
+ 
+ // Put 4-byte zero which is the length field in FDE at the end as a terminator.
+-const int32_t __EH_FRAME_LIST_END__[]
++static int32_t __EH_FRAME_LIST_END__[]
+     __attribute__((section(".eh_frame"), aligned(sizeof(int32_t)),
+                    visibility("hidden"), used)) = {0};
+ 
+--- a/src/llvm-project/libunwind/src/UnwindLevel1.c
++++ b/src/llvm-project/libunwind/src/UnwindLevel1.c
+@@ -185,7 +185,7 @@
+ 
+ #if defined(_LIBUNWIND_USE_GCS)
+ // Enable the GCS target feature to permit gcspop instructions to be used.
+-__attribute__((target("gcs")))
++__attribute__((target("+gcs")))
+ #endif
+ static _Unwind_Reason_Code
+ unwind_phase2(unw_context_t *uc, unw_cursor_t *cursor, _Unwind_Exception *exception_object) {
+@@ -329,7 +329,7 @@
+ 
+ #if defined(_LIBUNWIND_USE_GCS)
+ // Enable the GCS target feature to permit gcspop instructions to be used.
+-__attribute__((target("gcs")))
++__attribute__((target("+gcs")))
+ #endif
+ static _Unwind_Reason_Code
+ unwind_phase2_forced(unw_context_t *uc, unw_cursor_t *cursor,
