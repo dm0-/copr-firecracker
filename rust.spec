@@ -1,6 +1,6 @@
 Name:           rust
 Version:        1.88.0
-Release:        2%{?dist}
+Release:        3%{?dist}
 Summary:        The Rust Programming Language
 License:        (Apache-2.0 OR MIT) AND (Artistic-2.0 AND BSD-3-Clause AND ISC AND MIT AND MPL-2.0 AND Unicode-3.0)
 # ^ written as: (rust itself) and (bundled libraries)
@@ -1302,5 +1302,5 @@ end}
 
 
 %changelog
-* Thu Jun 26 2025 David Michael <fedora.dm0@gmail.com> - 1.88.0-2
+* Wed Jul 30 2025 David Michael <fedora.dm0@gmail.com> - 1.88.0-3
 - Build musl target subpackages.
