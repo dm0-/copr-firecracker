@@ -1,4 +1,4 @@
-From 35a37bd892939b8a1cd194632de3b9dd3a3d479b Mon Sep 17 00:00:00 2001
+From 0539027ae7a60cd6ddf2190450240d35a147599d Mon Sep 17 00:00:00 2001
 From: Jesus Checa Hidalgo <jchecahi@redhat.com>
 Date: Mon, 7 Apr 2025 17:22:56 +0200
 Subject: [PATCH 2/2] set an external library path for wasm32-wasi
@@ -11,10 +11,10 @@ Subject: [PATCH 2/2] set an external library path for wasm32-wasi
  4 files changed, 18 insertions(+), 3 deletions(-)
 
 diff --git a/compiler/rustc_codegen_ssa/src/back/link.rs b/compiler/rustc_codegen_ssa/src/back/link.rs
-index b59d73a9aae..2369d73b4e3 100644
+index 8882ba359b7..914e5c1398f 100644
 --- a/compiler/rustc_codegen_ssa/src/back/link.rs
 +++ b/compiler/rustc_codegen_ssa/src/back/link.rs
-@@ -1583,6 +1583,12 @@ fn get_object_file_path(sess: &Session, name: &str, self_contained: bool) -> Pat
+@@ -1548,6 +1548,12 @@ fn get_object_file_path(sess: &Session, name: &str, self_contained: bool) -> Pat
              return file_path;
          }
      }
@@ -27,7 +27,7 @@ index b59d73a9aae..2369d73b4e3 100644
      for search_path in sess.target_filesearch().search_paths(PathKind::Native) {
          let file_path = search_path.dir.join(name);
          if file_path.exists() {
-@@ -2140,6 +2146,10 @@ fn add_library_search_dirs(
+@@ -2121,6 +2127,10 @@ fn add_library_search_dirs(
          }
          ControlFlow::<()>::Continue(())
      });
@@ -39,10 +39,10 @@ index b59d73a9aae..2369d73b4e3 100644
  
  /// Add options making relocation sections in the produced ELF files read-only
 diff --git a/compiler/rustc_target/src/spec/json.rs b/compiler/rustc_target/src/spec/json.rs
-index 4b6de5e18f5..373301d85ab 100644
+index 6c716f87125..187cc93b2d3 100644
 --- a/compiler/rustc_target/src/spec/json.rs
 +++ b/compiler/rustc_target/src/spec/json.rs
-@@ -559,6 +559,7 @@ macro_rules! key {
+@@ -572,6 +572,7 @@ macro_rules! key {
          key!(linker_is_gnu_json = "linker-is-gnu", bool);
          key!(pre_link_objects = "pre-link-objects", link_objects);
          key!(post_link_objects = "post-link-objects", link_objects);
@@ -50,7 +50,7 @@ index 4b6de5e18f5..373301d85ab 100644
          key!(pre_link_objects_self_contained = "pre-link-objects-fallback", link_objects);
          key!(post_link_objects_self_contained = "post-link-objects-fallback", link_objects);
          // Deserializes the backwards-compatible variants of `-Clink-self-contained`
-@@ -744,6 +745,7 @@ macro_rules! target_option_val {
+@@ -771,6 +772,7 @@ macro_rules! target_option_val {
          target_option_val!(linker_is_gnu_json, "linker-is-gnu");
          target_option_val!(pre_link_objects);
          target_option_val!(post_link_objects);
@@ -59,10 +59,10 @@ index 4b6de5e18f5..373301d85ab 100644
          target_option_val!(post_link_objects_self_contained, "post-link-objects-fallback");
          target_option_val!(link_args - pre_link_args_json, "pre-link-args");
 diff --git a/compiler/rustc_target/src/spec/mod.rs b/compiler/rustc_target/src/spec/mod.rs
-index 7234d1dc63e..3ec85bbf279 100644
+index 7a49f004072..a693fd74887 100644
 --- a/compiler/rustc_target/src/spec/mod.rs
 +++ b/compiler/rustc_target/src/spec/mod.rs
-@@ -2301,6 +2301,7 @@ pub struct TargetOptions {
+@@ -2293,6 +2293,7 @@ pub struct TargetOptions {
      /// Objects to link before and after all other object code.
      pub pre_link_objects: CrtObjects,
      pub post_link_objects: CrtObjects,
@@ -70,7 +70,7 @@ index 7234d1dc63e..3ec85bbf279 100644
      /// Same as `(pre|post)_link_objects`, but when self-contained linking mode is enabled.
      pub pre_link_objects_self_contained: CrtObjects,
      pub post_link_objects_self_contained: CrtObjects,
-@@ -2821,6 +2822,7 @@ fn default() -> TargetOptions {
+@@ -2813,6 +2814,7 @@ fn default() -> TargetOptions {
              relro_level: RelroLevel::None,
              pre_link_objects: Default::default(),
              post_link_objects: Default::default(),
@@ -99,5 +99,5 @@ index 26add451ed2..3eaf050e682 100644
      // Right now this is a bit of a workaround but we're currently saying that
      // the target by default has a static crt which we're taking as a signal
 -- 
-2.48.1
+2.49.0
 
