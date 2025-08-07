@@ -512,6 +512,8 @@ Summary:        GDB pretty printers for Rust
 BuildArch:      noarch
 Requires:       gdb
 Requires:       %{name}-debugger-common = %{version}-%{release}
+# rust-gdb uses rustc to find the sysroot
+Requires:       %{name} = %{version}-%{release}
 
 %description gdb
 This package includes the rust-gdb script, which allows easier debugging of Rust
@@ -524,6 +526,8 @@ BuildArch:      noarch
 Requires:       lldb
 Requires:       python3-lldb
 Requires:       %{name}-debugger-common = %{version}-%{release}
+# rust-lldb uses rustc to find the sysroot
+Requires:       %{name} = %{version}-%{release}
 
 %description lldb
 This package includes the rust-lldb script, which allows easier debugging of Rust
