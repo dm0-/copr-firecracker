@@ -1,17 +1,11 @@
-The AWS libcrypto Rust crate is a ring-compatible API built on the libcrypto C
-library and its libssl C++ library.  Packaging aws-lc-rs in Fedora would likely
-require unbundling and integrating them into crypto-policies and/or special
-review by the packaging committee and security team.  Upstream chose this crate
-because it was submitted for FIPS certification.  Firecracker only uses it to
-get some random bytes, so this reverts 246a308ef6d1054f7551ebeee7f0191b8518d2ad
-to go back to the original implementation with the rand crate instead.  If FIPS
-certification becomes necessary for the RPM, the ring crate is now also working
-towards ceritifcation and is already in Fedora, so this patch could potentially
-switch to that in the future.
+The AWS libcrypto Rust crate is being packaged in Fedora but stalled due to the
+additional cryptographic requirements.  Firecracker only uses it to get some
+random bytes, so this reverts 246a308ef6d1054f7551ebeee7f0191b8518d2ad to go
+back to the original implementation with the rand crate instead.
 
 --- a/resources/seccomp/aarch64-unknown-linux-musl.json
 +++ b/resources/seccomp/aarch64-unknown-linux-musl.json
-@@ -108,7 +108,7 @@
+@@ -111,7 +111,7 @@
              },
              {
                "syscall": "getrandom",
@@ -20,7 +14,7 @@ switch to that in the future.
              },
              {
                  "syscall": "accept4",
-@@ -210,7 +210,16 @@
+@@ -213,7 +213,16 @@
              },
              {
                  "syscall": "madvise",
@@ -40,7 +34,7 @@ switch to that in the future.
                  "syscall": "mmap",
 --- a/resources/seccomp/x86_64-unknown-linux-musl.json
 +++ b/resources/seccomp/x86_64-unknown-linux-musl.json
-@@ -108,7 +108,7 @@
+@@ -111,7 +111,7 @@
              },
              {
                  "syscall": "getrandom",
@@ -49,7 +43,7 @@ switch to that in the future.
              },
              {
                  "syscall": "accept4",
-@@ -210,7 +210,16 @@
+@@ -213,7 +213,16 @@
              },
              {
                  "syscall": "madvise",
@@ -69,15 +63,15 @@ switch to that in the future.
                  "syscall": "mmap",
 --- a/src/vmm/Cargo.toml
 +++ b/src/vmm/Cargo.toml
-@@ -12,7 +12,7 @@
- acpi_tables = { path = "../acpi-tables" }
- aes-gcm =  { version = "0.10.1", default-features = false, features = ["aes"] }
+@@ -19,7 +19,7 @@
+ aes-gcm = { version = "0.10.1", default-features = false, features = ["aes"] }
+ anyhow = "1.0.98"
  arrayvec = { version = "0.7.6", optional = true }
--aws-lc-rs = { version = "1.13.0", features = ["bindgen"] }
+-aws-lc-rs = { version = "1.13.3", features = ["bindgen"] }
 +rand_core = { version = "0.9.3", features = ["os_rng"] }
  base64 = "0.22.1"
  bincode = { version = "2.0.1", features = ["serde"] }
- bitflags = "2.9.0"
+ bitflags = "2.9.1"
 --- a/src/vmm/src/devices/acpi/vmgenid.rs
 +++ b/src/vmm/src/devices/acpi/vmgenid.rs
 @@ -2,9 +2,8 @@
@@ -91,7 +85,7 @@ switch to that in the future.
  use serde::{Deserialize, Serialize};
  use vm_memory::{GuestAddress, GuestMemoryError};
  use vm_superio::Trigger;
-@@ -45,7 +45,7 @@
+@@ -45,7 +44,7 @@
      /// Error accessing VMGenID memory: {0}
      GuestMemory(#[from] GuestMemoryError),
      /// Create generation ID error: {0}
@@ -100,7 +94,7 @@ switch to that in the future.
      /// Failed to allocate requested resource: {0}
      Allocator(#[from] vm_allocator::Error),
  }
-@@ -100,9 +100,9 @@
+@@ -100,9 +99,9 @@
      }
  
      // Create a 16-bytes random number
@@ -115,15 +109,15 @@ switch to that in the future.
 --- a/src/vmm/src/devices/virtio/rng/device.rs
 +++ b/src/vmm/src/devices/virtio/rng/device.rs
 @@ -5,7 +5,7 @@
+ use std::ops::Deref;
  use std::sync::Arc;
- use std::sync::atomic::AtomicU32;
  
 -use aws_lc_rs::rand;
 +use rand_core::{OsError, OsRng, TryRngCore};
+ use log::info;
  use vm_memory::GuestMemoryError;
  use vmm_sys_util::eventfd::EventFd;
- 
-@@ -31,7 +32,7 @@
+@@ -35,7 +35,7 @@
      /// Bad guest memory buffer: {0}
      GuestMemory(#[from] GuestMemoryError),
      /// Could not get random bytes: {0}
@@ -132,7 +126,7 @@ switch to that in the future.
      /// Underlying IovDeque error: {0}
      IovDeque(#[from] IovDequeError),
  }
-@@ -119,7 +120,7 @@
+@@ -120,7 +120,7 @@
          }
  
          let mut rand_bytes = vec![0; self.buffer.len() as usize];
