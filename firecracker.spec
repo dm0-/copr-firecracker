@@ -1,20 +1,20 @@
 # The RPM macro cargo_target can be defined to specify the Rust target to use
 # during the build.  This defaults to musl for security benefits in Copr.
 %if ! %{defined cargo_target}
-%global cargo_target %{_target_cpu}-unknown-linux-musl
+%global cargo_target %{gsub %{_target_cpu} ^riscv64$ %0gc}-unknown-linux-musl
 %endif
 
 # Disable tests by default since VMs can't run in containerized Fedora builds.
 %bcond check    0
 
 # The cpu-template-helper program only supports aarch64 and x86_64 CPUs.
-%bcond cth      %{lua:print(("ax"):find(rpm.expand("%{_target_cpu}"):sub(1,1)) or 0)}
+%bcond cth      %[ "%{_target_cpu}" == "aarch64" || "%{_target_cpu}" == "x86_64" ]
 
 # The jailer's documentation says only musl targets are supported.
 %bcond jailer   %{lua:print(rpm.expand("%{?cargo_target}"):find("musl") or 0)}
 
 Name:           firecracker
-Version:        1.12.1
+Version:        1.13.1
 Release:        2%{?dist}
 
 Summary:        Secure and fast microVMs for serverless computing
@@ -25,19 +25,13 @@ URL:            https://firecracker-microvm.github.io/
 Source0:        https://github.com/firecracker-microvm/firecracker/archive/v%{version}/%{name}-%{version}.tar.gz
 
 # Bundle forked versions of existing crates to avoid conflicts with upstreams.
-Source1:        https://github.com/firecracker-microvm/micro-http/archive/e854e50bc06a7e7bc0e5f5835d8f3f951e21f05f/micro_http-e854e50.tar.gz
-Provides:       bundled(crate(micro_http)) = 0.1.0^gite854e50
-
-Patch:          %{name}-1.11.0-dynamic-linking.patch
-%ifarch riscv64
-%global _default_patch_fuzz 3
-Patch:          https://github.com/firecracker-microvm/firecracker/pull/5227.patch#/%{name}-1.12.0-riscv64.patch
-%endif
+Source1:        https://github.com/firecracker-microvm/micro-http/archive/98d85677ba603d16c40103c09059b54c38d71825/micro_http-98d8567.tar.gz
+Provides:       bundled(crate(micro_http)) = 0.1.0^git98d8567
 
 # Edit crate dependencies to track what is packaged in Fedora.
-Patch:          %{name}-1.12.0-remove-aws-lc-rs.patch
-Patch:          %{name}-1.12.0-remove-criterion.patch
-Patch:          %{name}-1.12.0-remove-device_tree.patch
+Patch:          %{name}-1.13.1-remove-aws-lc-rs.patch
+Patch:          %{name}-1.13.0-remove-criterion.patch
+Patch:          %{name}-1.13.0-remove-device_tree.patch
 
 BuildRequires:  cargo-rpm-macros >= 24
 BuildRequires:  libseccomp-devel
@@ -45,7 +39,7 @@ BuildRequires:  libseccomp-devel
 BuildRequires:  rust-std-static-%{cargo_target}
 %endif
 
-ExclusiveArch:  aarch64 riscv64 x86_64
+ExclusiveArch:  aarch64 x86_64
 
 %description
 Firecracker is an open source virtualization technology that is purpose-built
@@ -61,9 +55,8 @@ release.  It is not production ready without additional sandboxing.}
 
 %prep
 %autosetup -p1
-mkdir forks
-tar --transform='s,^[^/]*,micro_http,' -C forks -xzf %{SOURCE1}
-sed -i -e 's,^\(micro_http\) = .*,\1 = { path = "../../forks/\1" },' src/*/Cargo.toml
+tar --transform='s,^[^/]*,micro_http,' -C src -xzf %{SOURCE1}
+sed -i -e 's,^\(micro_http\) = .*,\1 = { path = "../\1" },' src/*/Cargo.toml
 %cargo_prep
 
 %generate_buildrequires
@@ -71,12 +64,14 @@ sed -i -e 's,^\(micro_http\) = .*,\1 = { path = "../../forks/\1" },' src/*/Cargo
 
 %build
 export AR=ar RANLIB=ranlib
-%cargo_build -- --package={%{?with_cth:cpu-template-helper,}firecracker,%{?with_jailer:jailer,}rebase-snap,seccompiler,snapshot-editor} %{?cargo_target:--target=%{cargo_target}}
+%{?cargo_target:%cargo_build -- --package=firecracker %{?with_jailer:--package=jailer} --target=%{cargo_target}}
+%cargo_build -- --package={%{?with_cth:cpu-template-helper,}%{!?cargo_target:firecracker,%{?with_jailer:jailer,}}rebase-snap,seccompiler,snapshot-editor}
 %cargo_license_summary
 %{cargo_license} > LICENSE.dependencies
 
 %install
-install -pm 0755 -Dt %{buildroot}%{_bindir} target/%{?cargo_target}/rpm/{%{?with_cth:cpu-template-helper,}firecracker,%{?with_jailer:jailer,}rebase-snap,seccompiler-bin,snapshot-editor}
+install -pm 0755 -Dt %{buildroot}%{_bindir} target/%{?cargo_target}/rpm/firecracker %{?with_jailer:target/%{?cargo_target}/rpm/jailer}
+install -pm 0755 -Dt %{buildroot}%{_bindir} target/rpm/{%{?with_cth:cpu-template-helper,}rebase-snap,seccompiler-bin,snapshot-editor}
 
 # Ship the built-in seccomp JSON as an example that can be edited and compiled.
 ln -fn resources/seccomp/%{cargo_target}.json seccomp-filter.json ||
@@ -107,6 +102,12 @@ done
 
 
 %changelog
+* Sat Sep 20 2025 David Michael <fedora.dm0@gmail.com> - 1.13.1-2
+- Switch to static musl by default.
+
+* Tue Sep 02 2025 David Michael <fedora.dm0@gmail.com> - 1.13.1-1
+- Update to the 1.13.1 release.
+
 * Wed Jul 23 2025 Fedora Release Engineering <releng@fedoraproject.org> - 1.12.1-2
 - Rebuilt for https://fedoraproject.org/wiki/Fedora_43_Mass_Rebuild
 

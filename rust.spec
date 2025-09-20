@@ -1,6 +1,6 @@
 Name:           rust
-Version:        1.89.0
-Release:        3%{?dist}
+Version:        1.90.0
+Release:        2%{?dist}
 Summary:        The Rust Programming Language
 License:        (Apache-2.0 OR MIT) AND (Artistic-2.0 AND BSD-3-Clause AND ISC AND MIT AND MPL-2.0 AND Unicode-3.0)
 # ^ written as: (rust itself) and (bundled libraries)
@@ -14,9 +14,9 @@ ExclusiveArch:  %{rust_arches}
 # To bootstrap from scratch, set the channel and date from src/stage0
 # e.g. 1.89.0 wants rustc: 1.88.0-2025-06-26
 # or nightly wants some beta-YYYY-MM-DD
-%global bootstrap_version 1.88.0
-%global bootstrap_channel 1.88.0
-%global bootstrap_date 2025-06-26
+%global bootstrap_version 1.89.0
+%global bootstrap_channel 1.89.0
+%global bootstrap_date 2025-08-07
 
 # Only the specified arches will use bootstrap binaries.
 # NOTE: Those binaries used to be uploaded with every new release, but that was
@@ -45,7 +45,7 @@ ExclusiveArch:  %{rust_arches}
 # is insufficient. Rust currently requires LLVM 19.0+.
 # See src/bootstrap/src/core/build_steps/llvm.rs, fn check_llvm_version
 %global min_llvm_version 19.0.0
-%global bundled_llvm_version 20.1.7
+%global bundled_llvm_version 20.1.8
 #global llvm_compat_version 19
 %global llvm llvm%{?llvm_compat_version}
 %bcond_with bundled_llvm
@@ -54,7 +54,7 @@ ExclusiveArch:  %{rust_arches}
 # This needs to be consistent with the bindings in vendor/libgit2-sys.
 %global min_libgit2_version 1.9.0
 %global next_libgit2_version 1.10.0~
-%global bundled_libgit2_version 1.9.0
+%global bundled_libgit2_version 1.9.1
 %if 0%{?fedora} >= 41
 %bcond_with bundled_libgit2
 %else
@@ -72,7 +72,7 @@ ExclusiveArch:  %{rust_arches}
 
 # Cargo uses UPSERTs with omitted conflict targets
 %global min_sqlite3_version 3.35
-%global bundled_sqlite3_version 3.49.1
+%global bundled_sqlite3_version 3.49.2
 %if 0%{?rhel} && 0%{?rhel} < 10
 %bcond_without bundled_sqlite3
 %else
@@ -138,16 +138,21 @@ Patch4:         0001-bootstrap-allow-disabling-target-self-contained.patch
 Patch5:         0002-set-an-external-library-path-for-wasm32-wasi.patch
 
 # We don't want to use the bundled library in libsqlite3-sys
-Patch6:         rustc-1.88.0-unbundle-sqlite.patch
+Patch6:         rustc-1.90.0-unbundle-sqlite.patch
 
 # stage0 tries to copy all of /usr/lib, sometimes unsuccessfully, see #143735
 Patch7:         0001-only-copy-rustlib-into-stage0-sysroot.patch
 
-# PR #143752, fixed upstream.
-Patch8:         0001-Don-t-always-panic-if-WASI_SDK_PATH-is-not-set-when-.patch
+# Support optimized-compiler-builtins via linking against compiler-rt builtins.
+# https://github.com/rust-lang/rust/pull/143689
+Patch8:         0001-Allow-linking-a-prebuilt-optimized-compiler-rt-built.patch
+
+# Fix a compiler stack overflow on ppc64le with PGO
+# https://github.com/rust-lang/rust/pull/145410
+Patch9:        0001-rustc_expand-ensure-stack-in-InvocationCollector-vis.patch
 
 # Adjust Fedora packaging flags as needed for a different libc.
-Patch99:        %{name}-1.89.0-fix-musl-bootstrap.patch
+Patch99:        %{name}-1.90.0-fix-musl-bootstrap.patch
 
 ### RHEL-specific patches below ###
 
@@ -158,7 +163,7 @@ Source102:      cargo_vendor.attr
 Source103:      cargo_vendor.prov
 
 # Disable cargo->libgit2->libssh2 on RHEL, as it's not approved for FIPS (rhbz1732949)
-Patch100:       rustc-1.89.0-disable-libssh2.patch
+Patch100:       rustc-1.90.0-disable-libssh2.patch
 
 # Get the Rust triple for any architecture and ABI.
 %{lua: function rust_triple(arch, abi)
@@ -727,6 +732,7 @@ rm -rf %{wasi_libc_dir}/dlmalloc/
 %endif
 %patch -P7 -p1
 %patch -P8 -p1
+%patch -P9 -p1
 
 %if %with disabled_libssh2
 %patch -P100 -p1
@@ -912,10 +918,19 @@ end}
 %endif
 %endif
 
-# Find the compiler-rt library for the Rust profiler_builtins crate.
+# Find the compiler-rt library for the Rust profiler_builtins and optimized-builtins crates.
 %define clang_lib %{expand:%%clang%{?llvm_compat_version}_resource_dir}/lib
 %define profiler %{clang_lib}/%{_arch}-redhat-linux-gnu/libclang_rt.profile.a
 test -r "%{profiler}"
+
+# llvm < 21 does not provide a builtins library for s390x.
+%if "%{_arch}" != "s390x" || 0%{?clang_major_version} >= 21
+%define optimized_builtins %{clang_lib}/%{_arch}-redhat-linux-gnu/libclang_rt.builtins.a
+test -r "%{optimized_builtins}"
+%else
+%define optimized_builtins false
+%endif
+
 
 %configure --disable-option-checking \
   --docdir=%{_pkgdocdir} \
@@ -927,6 +942,7 @@ test -r "%{profiler}"
   --set target.%{rust_triple}.ar=%{__ar} \
   --set target.%{rust_triple}.ranlib=%{__ranlib} \
   --set target.%{rust_triple}.profiler="%{profiler}" \
+  --set target.%{rust_triple}.optimized-compiler-builtins="%{optimized_builtins}" \
   %{?mingw_target_config} \
   %{?musl_target_config} \
   %{?wasm_target_config} \
@@ -958,11 +974,7 @@ test -r "%{profiler}"
 
 %global __x %{__python3} ./x.py
 
-# - rustc is exibiting signs of miscompilation on pwr9+pgo (root cause TBD),
-#   so we're skipping pgo on rhel ppc64le for now. See RHEL-88598 for more.
-# - Since 1.87, Fedora started getting ppc64le segfaults, and this also seems
-#   to be avoidable by skipping pgo. See bz2367960 for examples of that.
-%if %{with rustc_pgo} && !( "%{_target_cpu}" == "ppc64le" )
+%if %{with rustc_pgo}
 # Build the compiler with profile instrumentation
 %define profraw $PWD/build/profiles
 %define profdata $PWD/build/rustc.profdata
@@ -1309,5 +1321,5 @@ end}
 
 
 %changelog
-* Thu Aug 07 2025 David Michael <fedora.dm0@gmail.com> - 1.89.0-3
+* Sat Sep 20 2025 David Michael <fedora.dm0@gmail.com> - 1.90.0-2
 - Build musl target subpackages.

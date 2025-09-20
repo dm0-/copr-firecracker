@@ -3,7 +3,7 @@ type conflict errors that prevent building with musl targets.
 
 --- a/src/bootstrap/src/core/build_steps/llvm.rs
 +++ b/src/bootstrap/src/core/build_steps/llvm.rs
-@@ -1365,6 +1365,7 @@
+@@ -1374,6 +1374,7 @@
              .define("CRT_HAS_INITFINI_ARRAY", None)
              .define("EH_USE_FRAME_REGISTRY", None);
  
@@ -11,7 +11,7 @@ type conflict errors that prevent building with musl targets.
          let objs = cfg.compile_intermediates();
          assert_eq!(objs.len(), 2);
          for obj in objs {
-@@ -1462,6 +1463,7 @@
+@@ -1471,6 +1472,7 @@
              if self.target.is_windows() {
                  cfg.define("_LIBUNWIND_HIDE_SYMBOLS", "1");
              }
@@ -19,7 +19,7 @@ type conflict errors that prevent building with musl targets.
          }
  
          cc_cfg.compiler(builder.cc(self.target));
-@@ -1536,3 +1538,18 @@
+@@ -1545,3 +1547,18 @@
          out_dir
      }
  }
